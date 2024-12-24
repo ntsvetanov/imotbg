@@ -1,0 +1,14 @@
+[tool.ruff]
+line-length = 120           # Sets the maximum line length
+target-version = "py311"     # Specifies the target Python version
+include = ["*.py", "*.pyi"]  # run ruff only on py files without ipynb
+
+[tool.ruff.lint]
+select = [
+    "E4", # subset of pypycodestyle
+    "E7", # subset of pypycodestyle
+    "E9", # subset of pypycodestyle
+    "F",  # Pyflakes
+    "I",  # isort
+]
+ignore = ["E402"]

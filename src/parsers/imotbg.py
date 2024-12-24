@@ -1,9 +1,12 @@
-from typing import List, Dict
+from typing import Dict, List
+
 from bs4 import BeautifulSoup
-from src.utils import get_text_or_none
+
 from src.logger_setup import get_logger
+from src.utils import get_text_or_none
 
 logger = get_logger(__name__)
+
 
 class ImotBg:
     PRICE_DIV_CLASS = "price"
@@ -16,10 +19,7 @@ class ImotBg:
     def get_all_listing_tables(self, soup: BeautifulSoup) -> List[BeautifulSoup]:
         if not soup:
             raise ValueError("Soup object not initialized.")
-        return [
-            table for table in soup.find_all("table")
-            if table.find("div", class_=self.PRICE_DIV_CLASS)
-        ]
+        return [table for table in soup.find_all("table") if table.find("div", class_=self.PRICE_DIV_CLASS)]
 
     def extract_listing_data(self, table: BeautifulSoup) -> Dict:
         data = {
@@ -51,9 +51,7 @@ class ImotBg:
                 {
                     "description": description_text,
                     "contact_info": (
-                        description_text.split("тел.:")[-1].strip()
-                        if "тел.:" in description_text
-                        else None
+                        description_text.split("тел.:")[-1].strip() if "тел.:" in description_text else None
                     ),
                 }
             )
@@ -62,9 +60,7 @@ class ImotBg:
         if agency_logo_tag:
             data["agency_url"] = f"https:{agency_logo_tag.get('href', '')}"
 
-        details_tag = table.find(
-            "a", class_=self.DETAILS_LINK_CLASS, text=lambda text: text and "снимки" in text
-        )
+        details_tag = table.find("a", class_=self.DETAILS_LINK_CLASS, text=lambda text: text and "снимки" in text)
         if details_tag:
             data.update(
                 {

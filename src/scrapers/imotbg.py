@@ -1,7 +1,8 @@
 from typing import List, Optional
-from src.scrapers.http_client import HttpClient
-from src.parsers.imotbg import ImotBg
+
+from src.infrastructure.clients.http_client import HttpClient
 from src.logger_setup import get_logger
+from src.parsers.imotbg import ImotBg
 
 logger = get_logger(__file__)
 
@@ -45,5 +46,5 @@ class ImotBgScraper:
             html_content = self.fetch_page(page_url)
             logger.info(f"Processing {page_url} page {page_num} of {self.total_pages}")
             results.extend(self.parser.parse_listings(html_content))
-        
+
         return results

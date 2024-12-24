@@ -1,5 +1,6 @@
-import httpx
 from typing import Optional
+
+import httpx
 
 from src.logger_setup import get_logger
 
