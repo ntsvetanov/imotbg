@@ -3,14 +3,16 @@ import argparse
 import pandas as pd
 
 from src.scrapers.imotbg import ImotBgScraper
+from src.scrapers.imotinet import ImotiNetScraper
 
 DEFAULT_TIMEOUT = 10
-DEFAULT_ENCODING = "windows-1251"
-DEFAULT_url = "https://www.imot.bg/pcgi/imot.cgi?act=3&slink=bh8em1&f1=1"
+DEFAULT_ENCODING = "utf-8"
+DEFAULT_URL = "https://www.imoti.net/bg/obiavi/r/prodava/sofia/dvustaen/?sid=hY044A"
 DEFAULT_OUTPUT_FILE = "imotbg.csv"
 
 
-def main(url, timeout, encoding, output_file):
+def run_imotibg(url, timeout, output_file):
+    encoding = "windows-1251"
     scraper = ImotBgScraper(
         url=url,
         encoding=encoding,
@@ -19,6 +21,22 @@ def main(url, timeout, encoding, output_file):
     res = scraper.process()
 
     pd.DataFrame(res).to_csv(output_file, index=False)
+
+
+def run_imotinet(url, timeout, output_file):
+    encoding = "utf-8"
+    scraper = ImotiNetScraper(
+        url=url,
+        encoding=encoding,
+        timeout=timeout,
+    )
+    res = res = scraper.process()
+    pd.DataFrame(res).to_csv(output_file, index=False)
+
+
+def main(url, timeout, encoding, output_file):
+    # todo add endocing
+    run_imotinet(url, timeout, output_file)
 
 
 if __name__ == "__main__":
