@@ -8,11 +8,8 @@ logger = get_logger(__name__)
 class HomesbgParser:
     def extract_listing_data(self, listing: Dict) -> Dict:
         try:
-            # Extract the main photo details
             photo = listing.get("photo", {})
             photo_url = f"https://homes.bg/{photo.get('path', '')}{photo.get('name', '')}" if photo else None
-
-            # Extract listing details
             data = {
                 "id": listing.get("id"),
                 "type": listing.get("type"),

@@ -11,15 +11,12 @@ logger = get_logger(__name__)
 class ImotiNetParser:
     def extract_listing_data(self, listing: BeautifulSoup) -> Dict:
         try:
-            # Extract image URL
             image_tag = listing.find("img")
             image_url = image_tag.get("src", None) if image_tag else None
 
-            # Extract details URL
             details_link_tag = listing.find("a", {"class": "box-link"})
             details_url = details_link_tag.get("href", None) if details_link_tag else None
 
-            # Extract reference number and full description
             description_paragraphs = listing.find_all("p")
             reference_number = None
             description = None
@@ -30,7 +27,6 @@ class ImotiNetParser:
                 elif not description:
                     description = text
 
-            # Compile the extracted data
             data = {
                 "title": get_text_or_none(listing, ("h3", {})),
                 "price": get_text_or_none(listing, ("strong", {"class": "price"})),
@@ -48,7 +44,6 @@ class ImotiNetParser:
                 "is_top_ad": bool(listing.find("span", {"class": "flag flag-top absolute"})),
             }
 
-            # Adjust relative URLs to absolute if necessary
             if data["details_url"] and not data["details_url"].startswith("http"):
                 data["details_url"] = f"https://www.imoti.net{data['details_url']}"
 
