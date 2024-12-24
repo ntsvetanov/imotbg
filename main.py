@@ -2,6 +2,7 @@ import argparse
 
 import pandas as pd
 
+from src.scrapers.homesbg import HomesBgScraper
 from src.scrapers.imotbg import ImotBgScraper
 from src.scrapers.imotinet import ImotiNetScraper
 
@@ -19,7 +20,7 @@ def run_imotibg(url, timeout, output_file):
         timeout=timeout,
     )
     res = scraper.process()
-
+    output_file = "imotbg.csv"
     pd.DataFrame(res).to_csv(output_file, index=False)
 
 
@@ -31,12 +32,28 @@ def run_imotinet(url, timeout, output_file):
         timeout=timeout,
     )
     res = res = scraper.process()
+    output_file = "imotinet.csv"
+    pd.DataFrame(res).to_csv(output_file, index=False)
+
+
+def run_homesbg(url, timeout, output_file):
+    url = "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&neighbourhoods%5B%5D=488&typeId=ApartmentSell"
+
+    encoding = "utf-8"
+    scraper = HomesBgScraper(
+        url=url,
+        encoding=encoding,
+        timeout=timeout,
+    )
+    output_file = "homesbg.csv"
+    res = scraper.process()
     pd.DataFrame(res).to_csv(output_file, index=False)
 
 
 def main(url, timeout, encoding, output_file):
     # todo add endocing
-    run_imotinet(url, timeout, output_file)
+    # run_imotinet(url, timeout, output_file)
+    run_homesbg(url, timeout, output_file)
 
 
 if __name__ == "__main__":

@@ -34,3 +34,20 @@ class HttpClient:
             except httpx.RequestError as e:
                 logger.error(f"Error fetching content from {url}: {e}")
                 raise
+
+    def fetch_json(
+        self,
+        url: str,
+    ) -> dict:
+        with httpx.Client(
+            headers=self.headers,
+            timeout=self.timeout,
+            transport=httpx.HTTPTransport(retries=5),
+        ) as client:
+            try:
+                response = client.get(url)
+                response.raise_for_status()
+                return response.json()
+            except httpx.RequestError as e:
+                logger.error(f"Error fetching content from {url}: {e}")
+                raise
