@@ -3,6 +3,7 @@ import argparse
 import pandas as pd
 
 from src.infrastructure.scraper_executor import ScraperExecutor
+from src.logger_setup import get_logger
 from src.scrapers.homesbg import HomesBgScraper
 from src.scrapers.imotbg import ImotBgScraper
 from src.scrapers.imotinet import ImotiNetScraper
@@ -11,6 +12,26 @@ DEFAULT_TIMEOUT = 10
 DEFAULT_ENCODING = "utf-8"
 DEFAULT_URL = "https://www.imoti.net/bg/obiavi/r/prodava/sofia/dvustaen/?sid=hY044A"
 DEFAULT_OUTPUT_FILE = "imotbg.csv"
+
+logger = get_logger(__name__)
+
+
+def convert_to_df(listings: list) -> pd.DataFrame:
+    data_dicts = [listing.model_dump() for listing in listings]
+    return pd.DataFrame(data_dicts)
+
+
+def clean_imotibg(df):
+    try:
+        df["price_float"] = df["price"].str.extract(r"([\d\s]+)").replace("\s+", "", regex=True)
+        df["currency"] = df["price"].str.extract(r"(EUR|USD|BGN)")[0]
+        df["offer_type"] = df["title"].str.split(" ").str[0].str.strip()
+        df["property_type"] = df["title"].str.split(" ").str[1].str.strip()
+        df["city"] = df["location"].str.split(",").str[0].str.strip()
+        df["neighbourhood"] = df["location"].str.split(",").str[1].str.strip()
+    except Exception as e:
+        logger.error(f"Error cleaning imotibg data: {e}", exc_info=True)
+    return df
 
 
 def run_imotibg(url, timeout, output_file):
@@ -23,32 +44,32 @@ def run_imotibg(url, timeout, output_file):
         timeout=timeout,
     )
     res = scraper.process()
-    output_file = "imotbg.csv"
-    df = pd.DataFrame(res)
+    output_file = output_file
+    df = convert_to_df(res)
+    df = clean_imotibg(df)
+    # imotibg_mapping = {
+    #     "reference_number": "reference_number",
+    #     "type": None,  # Not present, add placeholder
+    #     "url": "url",  # Map directly or rename from 'details_url'
+    #     "title": "title",
+    #     "location": "location",
+    #     "description": "description",
+    #     "price": "price",
+    #     "photos": "photos",  # Remove duplicate 'photos' column
+    #     "is_favorite": "is_favorite",
+    #     "contact_info": "contact_info",  # Map from 'agency'
+    #     "price_per_m2": "price_per_m2",
+    #     "floor": "floor",
+    #     "is_top_ad": "is_top_ad",
+    # }
 
-    imotibg_mapping = {
-        "reference_number": "reference_number",
-        "type": None,  # Not present, add placeholder
-        "url": "url",  # Map directly or rename from 'details_url'
-        "title": "title",
-        "location": "location",
-        "description": "description",
-        "price": "price",
-        "photos": "photos",  # Remove duplicate 'photos' column
-        "is_favorite": "is_favorite",
-        "contact_info": "contact_info",  # Map from 'agency'
-        "price_per_m2": "price_per_m2",
-        "floor": "floor",
-        "is_top_ad": "is_top_ad",
-    }
+    # df = df.rename(columns=imotibg_mapping)
 
-    df = df.rename(columns=imotibg_mapping)
-
-    # Ensure all columns exist
-    required_columns = list(imotibg_mapping.values())
-    for col in required_columns:
-        if col not in df.columns:
-            df[col] = None
+    # # Ensure all columns exist
+    # required_columns = list(imotibg_mapping.values())
+    # for col in required_columns:
+    #     if col not in df.columns:
+    #         df[col] = None
 
     df.to_csv(output_file, index=False)
     return df
@@ -161,12 +182,12 @@ def main(url, timeout, encoding, output_file):
     # todo add endocing
     executor = ScraperExecutor(timeout)
 
-    executor.add_task(run_imotibg, url, timeout, "imotbg.csv")
-    executor.add_task(run_imotinet, url, timeout, "imotinet.csv")
-    executor.add_task(run_homesbg, url, timeout, "homesbg.csv")
+    executor.add_task(run_imotibg, url, timeout, "imotbg_old.csv")
+    # executor.add_task(run_imotinet, url, timeout, "imotinet.csv")
+    # executor.add_task(run_homesbg, url, timeout, "homesbg.csv")
 
-    results = executor.run()
-    concatenate_results(results)
+    results = executor.run()  # noqa
+    # concatenate_results(results)
 
 
 if __name__ == "__main__":
