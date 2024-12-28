@@ -10,7 +10,7 @@ from src.utils import get_tag_href_or_none, get_tag_text_or_none, parse_soup
 logger = get_logger(__name__)
 
 
-class ImotBgListingData(BaseModel):
+class RawImotBgListingData(BaseModel):
     price: Optional[str]
     title: Optional[str]
     listing_id: Optional[str]
@@ -48,7 +48,7 @@ class ImotBg:
         logger.info(f"Found {len(listing_tables)} listing tables.")
         return listing_tables
 
-    def extract_listing_data(self, table: Tag) -> ImotBgListingData:
+    def extract_listing_data(self, table: Tag) -> RawImotBgListingData:
         try:
             title_tag = table.find("a", class_=self.TITLE_LINK_CLASS)
             description_td = table.find("td", self.DESCRIPTION_CELL_PROPS)
@@ -79,10 +79,10 @@ class ImotBg:
                 "date_added": date_added,
             }
 
-            return ImotBgListingData(**result)
+            return RawImotBgListingData(**result)
         except ValidationError as ve:
             logger.error(f"Validation error for listing data: {ve}")
-            return ImotBgListingData()
+            return RawImotBgListingData()
 
     def parse_listings(self, page_content: str) -> List[Dict]:
         try:

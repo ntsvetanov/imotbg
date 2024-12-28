@@ -18,6 +18,7 @@ class HomesBgScraper:
         self.url = url
         self.http_client = HttpClient(headers=headers, timeout=timeout)
         self.parser = HomesbgParser()
+        self.raw_path_prefix = "data/raw/homesbg"
 
     def fetch_data(self) -> Dict:
         try:

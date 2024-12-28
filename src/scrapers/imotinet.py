@@ -20,6 +20,7 @@ class ImotiNetScraper:
         self.http_client = HttpClient(headers=headers, timeout=timeout)
         self.parser = ImotiNetParser()
         self.total_pages = -1
+        self.raw_path_prefix = "data/raw/imotinet"
 
     def fetch_page(self, url: str) -> str:
         try:
@@ -42,4 +43,5 @@ class ImotiNetScraper:
             logger.info(f"Processing {page_url} (page {page_num} of {self.total_pages})")
             results.extend(self.parser.parse_listings(html_content))
 
+        print(results)
         return results

@@ -1,3 +1,5 @@
+import os
+from datetime import datetime
 from typing import Any, Dict, Optional
 
 from bs4 import BeautifulSoup, Tag
@@ -33,3 +35,21 @@ def parse_soup(page_content: str) -> BeautifulSoup:
     if not page_content:
         raise ValueError("Page content cannot be empty.")
     return BeautifulSoup(page_content, "html.parser")
+
+
+def get_now_for_filename():
+    date = datetime.now()
+    formatted_date = date.strftime("%Y_%m_%d_%H_%M_%S")
+    return formatted_date
+
+
+def save_raw_csv(raw_path_prefix, df):
+    formatted_date = get_now_for_filename()
+
+    print(f"Saving raw data to {raw_path_prefix}")
+    if not os.path.exists(raw_path_prefix):
+        os.makedirs(raw_path_prefix)
+
+    result_file_name = os.path.join(raw_path_prefix, f"{formatted_date}.csv")
+
+    df.to_csv(result_file_name, index=False)
