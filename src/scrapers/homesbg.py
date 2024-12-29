@@ -2,7 +2,7 @@ from typing import Dict, List, Optional
 
 from src.infrastructure.clients.http_client import HttpClient
 from src.logger_setup import get_logger
-from src.parsers.homesbg import HomesbgParser
+from src.parsers.homesbg import HomesBgParser
 
 logger = get_logger(__file__)
 
@@ -17,7 +17,8 @@ class HomesBgScraper:
     ):
         self.url = url
         self.http_client = HttpClient(headers=headers, timeout=timeout)
-        self.parser = HomesbgParser()
+        self.parser = HomesBgParser()
+        self.raw_path_prefix = "data/raw/homesbg"
 
     def fetch_data(self) -> Dict:
         try:

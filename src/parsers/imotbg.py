@@ -1,11 +1,27 @@
-from typing import Dict, List
+from datetime import datetime
+from typing import Dict, List, Optional
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
+from pydantic import BaseModel, HttpUrl, ValidationError
 
 from src.logger_setup import get_logger
-from src.utils import get_text_or_none
+from src.models import PropertyType, Site
+from src.utils import get_tag_href_or_none, get_tag_text_or_none, parse_soup
 
 logger = get_logger(__name__)
+
+
+class RawImotBgListingData(BaseModel):
+    title: Optional[str]
+    price: Optional[str]
+    listing_id: Optional[str]
+    location: Optional[str]
+    description: Optional[str]
+    contact_info: Optional[str]
+    agency_url: Optional[HttpUrl]
+    details_url: Optional[HttpUrl]
+    num_photos: Optional[str]
+    date_added: Optional[datetime]
 
 
 class ImotBg:
@@ -16,72 +32,63 @@ class ImotBg:
     AGENCY_LOGO_CLASS = "logoLink"
     DESCRIPTION_CELL_PROPS = {"width": "520", "colspan": "3"}
     PAGE_NUMBER_INFO_CLASS = "pageNumbersInfo"
+    PHONE_LABEL = "тел.:"
+    ADV_QUERY_PARAM = "adv="
+    PROTOCOL = "https:"
+    DETAILS_TEXT_KEYWORD = "снимки"
 
-    def get_all_listing_tables(self, soup: BeautifulSoup) -> List[BeautifulSoup]:
+    def __init__(self):
+        self.soup = None
+
+    def get_all_listing_tables(self, soup: BeautifulSoup) -> List[Tag]:
         if not soup:
-            raise ValueError("Soup object not initialized.")
+            raise ValueError("Soup object is not initialized.")
 
-        return [table for table in soup.find_all("table") if table.find("div", class_=self.PRICE_DIV_CLASS)]
+        tables = soup.find_all("table")
+        listing_tables = [table for table in tables if table.find("div", class_=self.PRICE_DIV_CLASS)]
+        logger.info(f"Found {len(listing_tables)} listing tables.")
+        return listing_tables
 
-    def extract_listing_data(self, table: BeautifulSoup) -> Dict:
-        data = {
-            "price": get_text_or_none(table, ("div", {"class": self.PRICE_DIV_CLASS})),
-            "title": None,
-            "listing_id": None,
-            "location": get_text_or_none(table, ("a", {"class": self.LOCATION_LINK_CLASS})),
-            "description": None,
-            "contact_info": None,
-            "agency_url": None,
-            "details_url": None,
-            "num_photos": None,
-        }
-
-        title_tag = table.find("a", class_=self.TITLE_LINK_CLASS)
-        if title_tag:
-            href = title_tag.get("href", "")
-            data.update(
-                {
-                    "title": title_tag.get_text(strip=True),
-                    "listing_id": (href.split("adv=")[1].split("&")[0] if "adv=" in href else None),
-                }
+    def extract_listing_data(self, table: Tag) -> RawImotBgListingData:
+        try:
+            title_tag = table.find("a", class_=self.TITLE_LINK_CLASS)
+            description_td = table.find("td", self.DESCRIPTION_CELL_PROPS)
+            details_tag = table.find(
+                "a",
+                class_=self.DETAILS_LINK_CLASS,
+                text=lambda text: text and self.DETAILS_TEXT_KEYWORD in text,
             )
+            date_added = datetime.now().isoformat()
 
-        description_td = table.find("td", self.DESCRIPTION_CELL_PROPS)
-        if description_td:
-            description_text = description_td.get_text(strip=True)
-            data.update(
-                {
-                    "description": description_text,
-                    "contact_info": (
-                        description_text.split("тел.:")[-1].strip() if "тел.:" in description_text else None
-                    ),
-                }
-            )
+            result = {
+                "price": get_tag_text_or_none(table, ("div", {"class": self.PRICE_DIV_CLASS})),
+                "title": title_tag.get_text(strip=True) if title_tag else None,
+                "listing_id": (
+                    title_tag.get("href", "").split(self.ADV_QUERY_PARAM)[1].split("&")[0]
+                    if title_tag and self.ADV_QUERY_PARAM in title_tag.get("href", "")
+                    else None
+                ),
+                "location": get_tag_text_or_none(table, ("a", {"class": self.LOCATION_LINK_CLASS})),
+                "description": (description_td.get_text(strip=True) if description_td else None),
+                "contact_info": (
+                    description_td.get_text(strip=True).split(self.PHONE_LABEL)[-1].strip()
+                    if description_td and self.PHONE_LABEL in description_td.get_text(strip=True)
+                    else None
+                ),
+                "agency_url": f"{self.PROTOCOL}{get_tag_href_or_none(table, self.AGENCY_LOGO_CLASS)}",
+                "details_url": (f"{self.PROTOCOL}{title_tag.get('href', '')}" if title_tag else None),
+                "num_photos": (details_tag.get_text(strip=True).split(" ")[-2] if details_tag else None),
+                "date_added": date_added,
+            }
 
-        agency_logo_tag = table.find("a", class_=self.AGENCY_LOGO_CLASS)
-        if agency_logo_tag:
-            data["agency_url"] = f"https:{agency_logo_tag.get('href', '')}"
-
-        details_tag = table.find(
-            "a",
-            class_=self.DETAILS_LINK_CLASS,
-            text=lambda text: text and "снимки" in text,
-        )
-
-        if details_tag:
-            data.update(
-                {
-                    "details_url": f"https:{details_tag.get('href', '')}",
-                    "num_photos": details_tag.get_text(strip=True).split(" ")[-2],
-                }
-            )
-
-        return data
+            return RawImotBgListingData(**result)
+        except ValidationError as ve:
+            logger.error(f"Validation error for listing data: {ve}")
+            return RawImotBgListingData()
 
     def parse_listings(self, page_content: str) -> List[Dict]:
-        soup = BeautifulSoup(page_content, "html.parser")
-
         try:
+            soup = parse_soup(page_content)
             tables = self.get_all_listing_tables(soup)
             return [self.extract_listing_data(table) for table in tables]
         except Exception as e:
@@ -89,19 +96,65 @@ class ImotBg:
             return []
 
     def get_total_pages(self, page_content: str) -> int:
-        soup = BeautifulSoup(page_content, "html.parser")
-
         try:
-            page_info = soup.find(
-                "span",
-                class_=self.PAGE_NUMBER_INFO_CLASS,
-            )
-
+            soup = parse_soup(page_content)
+            page_info = soup.find("span", class_=self.PAGE_NUMBER_INFO_CLASS)
             if page_info:
                 total_pages_text = page_info.get_text(strip=True)
+                logger.info(f"Total pages text: {total_pages_text}")
                 return int(total_pages_text.split("от")[-1].strip())
-
             return 1
         except Exception as e:
             logger.error(f"Error fetching total pages: {e}", exc_info=True)
             return 1
+
+    @classmethod
+    def convert_map(cls, property_type: str) -> PropertyType:
+        map_property_type = {
+            "1-СТАЕН": PropertyType.EDNOSTAEN,
+            "2-СТАЕН": PropertyType.DVUSTAEN,
+            "3-СТАЕН": PropertyType.TRISTAEN,
+            "4-СТАЕН": PropertyType.CHETIRISTAEN,
+            "МЕЗОНЕТ": PropertyType.MESONET,
+        }
+        return map_property_type.get(
+            property_type,
+            "",
+        )
+
+    @classmethod
+    def to_property_listing_df(cls, df):
+        df.columns = [f"imotbg_{i}" for i in df.columns]
+        try:
+            df["title"] = df["imotbg_title"]
+            df["price"] = (
+                df["imotbg_price"]
+                .str.extract(r"([\d\s]+)")
+                .replace(r"\s+", "", regex=True)
+                .astype(int, errors="ignore")
+            )
+            df["currency"] = df["imotbg_price"].str.extract(r"(EUR|USD|BGN)")[0]
+
+            df["offer_type"] = df["imotbg_title"].str.split(" ").str[0].str.strip()
+
+            df["property_type"] = df["imotbg_title"].str.split(" ").str[1].str.strip()
+            df["property_type"] = df["property_type"].apply(cls.convert_map)
+
+            df["city"] = df["imotbg_location"].str.split(",").str[0].str.strip()
+            df["neighborhood"] = df["imotbg_location"].str.split(",").str[1].str.strip()
+
+            df["description"] = df["imotbg_description"]
+            df["contact_info"] = df["imotbg_contact_info"]
+            df["agency_url"] = df["imotbg_agency_url"]
+            df["details_url"] = df["imotbg_details_url"]
+            df["num_photos"] = df["imotbg_num_photos"]
+            df["date_added"] = df["imotbg_date_added"]
+            df["site"] = Site.IMOTBG
+            df["floor"] = ""
+            df["price_per_m2"] = ""
+            df["ref_no"] = df["imotbg_listing_id"]
+
+        except Exception as e:
+            logger.error(f"Error cleaning imotibg data: {e}", exc_info=True)
+
+        return df

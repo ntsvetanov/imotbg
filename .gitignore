@@ -169,6 +169,6 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
-
+data/*
 ss.py
 res.py
