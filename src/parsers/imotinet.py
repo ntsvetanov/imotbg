@@ -4,7 +4,8 @@ from typing import List, Optional
 from bs4 import Tag
 
 from src.logger_setup import get_logger
-from src.utils import get_text_or_none, parse_soup
+from src.models import PropertyType, Site
+from src.utils import get_text_or_none, parse_soup, validate_url
 
 logger = get_logger(__name__)
 
@@ -16,7 +17,10 @@ class RawImotiNetListingData(BaseModel):
     price_and_currency: Optional[str]
     location: Optional[str]
     details_url: Optional[str]
+    property_type: Optional[str]
+    area: Optional[str]
     agency: Optional[str]
+    agency_url: Optional[str]
     floor: Optional[str]
     price_per_m2: Optional[str]
     description: Optional[str]
@@ -48,39 +52,59 @@ class ImotiNetParser:
 
     def extract_listing_data(self, listing: Tag) -> RawImotiNetListingData:
         try:
-            # Extract image URL
             image_tag = listing.find(self.IMAGE_TAG)
             image_url = image_tag.get("src", None) if image_tag else None
 
-            # Extract details URL
             details_link_tag = listing.find("a", {"class": self.BOX_LINK_CLASS})
             details_url = details_link_tag.get("href", None) if details_link_tag else None
+            if details_url:
+                details_url = "https://www.imoti.net" + details_url
 
-            # Extract reference number and description
             description_paragraphs = listing.find_all("p")
-            reference_number = None
-            description = None
-            for paragraph in description_paragraphs:
-                text = paragraph.get_text(strip=True)
-                if self.REFERENCE_NUMBER_KEY in text:
-                    reference_number = text.split(self.REFERENCE_NUMBER_KEY)[-1].strip()
-                elif not description:
-                    description = text
+            try:
+                description_paragraphs = description_paragraphs[1].get_text(strip=True)
+            except IndexError:
+                description_paragraphs = None
 
-            # Populate data dictionary
+            agency = listing.find("span", {"class": self.AGENCY_CLASS, "style": "display:inline-block"})
+
+            if agency:
+                agency = agency.get_text(strip=True)
+            else:
+                agency = None
+            title = get_text_or_none(listing, ("h3", {}), strip=False)
+
+            property_type = title.split(",")[0]
+            area = title.split(",")[1]
+            parameters = listing.find("ul", {"class": "parameters"}).findAll("li")
+            if parameters:
+                floor = parameters[0].get_text(strip=True)
+            else:
+                floor = None
+            try:
+                price_per_m2 = parameters[1].get_text(strip=True)
+            except IndexError:
+                price_per_m2 = None
+
             data = {
-                "title": get_text_or_none(listing, ("h3", {})),
+                "title": title,
                 "price_and_currency": get_text_or_none(listing, ("strong", {"class": self.PRICE_CLASS})),
                 "location": get_text_or_none(listing, ("span", {"class": self.LOCATION_CLASS})),
+                "property_type": property_type,
+                "area": area,
                 "details_url": details_url,
                 "num_photos": get_text_or_none(listing, ("span", {"class": self.PIC_VIDEO_INFO_CLASS})),
-                "agency": get_text_or_none(listing, ("span", {"class": self.AGENCY_CLASS})),
-                "floor": get_text_or_none(listing, ("li", {"text": lambda t: t and self.FLOOR_KEY in t})),
-                "price_per_m2": get_text_or_none(listing, ("li", {"text": lambda t: t and self.PRICE_PER_M2_KEY in t})),
-                "description": description,
-                "reference_number": reference_number,
+                "agency": agency,
+                "agency_url": None,  # Agency URL is not present in the listing
+                "floor": floor,
+                "price_per_m2": price_per_m2,
+                "description": description_paragraphs,
+                "reference_number": None,
                 "is_top_ad": bool(listing.find("span", {"class": self.FLAG_TOP_CLASS})),
+                "date_added": datetime.now().isoformat(),
             }
+            if not validate_url(data["details_url"]):
+                data["details_url"] = None
 
             # Add base URL to relative paths
             if data["details_url"] and not data["details_url"].startswith("http"):
@@ -135,3 +159,50 @@ class ImotiNetParser:
         except Exception as e:
             logger.error(f"Error extracting total pages: {e}", exc_info=True)
             return 1
+
+    @classmethod
+    def convert_map(cls, property_type: str) -> PropertyType:
+        map_property_type = {
+            "продава Двустаен апартамент": PropertyType.DVUSTAEN,
+        }
+        return map_property_type.get(
+            property_type,
+            "",
+        )
+
+    @classmethod
+    def to_property_listing_df(cls, df):
+        try:
+            df["title"] = df["title"]
+            df["offer_type"] = df["title"].str.split(" ").str[0].str.strip()
+
+            df["area"] = df["area"]
+            df["property_type"] = df["property_type"]
+            df["property_type"] = df["property_type"].apply(cls.convert_map)
+
+            df["price"] = (
+                df["price_and_currency"]
+                .str.extract(r"([\d\s]+)")
+                .replace(r"\s+", "", regex=True)
+                .astype(int, errors="ignore")
+            )
+            df["currency"] = df["price_and_currency"].str.extract(r"(EUR|USD|BGN)")[0]
+
+            df["city"] = df["location"].str.split(",").str[0].str.strip()
+            df["neighborhood"] = df["location"].str.split(",").str[1].str.strip()
+
+            df["description"] = df["description"]
+            df["agency_url"] = df["agency_url"]
+            df["agency"] = df["agency"]
+            df["details_url"] = df["details_url"]
+            df["num_photos"] = df["num_photos"]
+            df["date_added"] = df["date_added"]
+            df["site"] = Site.IMOTINET
+            df["floor"] = df["floor"]
+            df["price_per_m2"] = df["price_per_m2"]
+            df["ref_no"] = df["reference_number"]
+
+        except Exception as e:
+            logger.error(f"Error cleaning imotinet data: {e}", exc_info=True)
+        print(df.columns)
+        return df

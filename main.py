@@ -1,13 +1,14 @@
 import argparse
-import enum
-from datetime import datetime
-from typing import Optional
+import os
 
 import pandas as pd
-from pydantic import BaseModel, ConfigDict, HttpUrl, ValidationError, validator
 
 from src.infrastructure.scraper_executor import ScraperExecutor
 from src.logger_setup import get_logger
+from src.models import PropertyListingData
+from src.parsers.homesbg import HomesBgParser
+from src.parsers.imotbg import ImotBg
+from src.parsers.imotinet import ImotiNetParser
 from src.scrapers.homesbg import HomesBgScraper
 from src.scrapers.imotbg import ImotBgScraper
 from src.scrapers.imotinet import ImotiNetScraper
@@ -23,96 +24,9 @@ logger = get_logger(__name__)
 # define enum class fot site type
 
 
-class Site(enum.Enum):
-    IMOTBG = "imot.bg"
-    IMOTINET = "imoti.net"
-    HOMESBG = "homes.bg"
-
-
-class PropertyListingData(BaseModel):
-    title: Optional[str] = ""
-    price: Optional[int] = 0
-    currency: Optional[str] = ""
-    offer_type: Optional[str] = ""
-    property_type: Optional[str] = ""
-    city: Optional[str] = ""
-    neighborhood: Optional[str] = ""
-    description: Optional[str] = ""
-    contact_info: Optional[str] = ""
-    agency_url: Optional[HttpUrl] = ""
-    details_url: Optional[HttpUrl] = ""
-    num_photos: Optional[int] = 0
-    date_added: Optional[datetime] = None
-    site: Site
-    floor: Optional[int] = 0
-    price_per_m2: Optional[float] = 0.0
-    ref_no: Optional[str] = ""
-
-    model_config = ConfigDict(use_enum_values=True)
-
-    @validator("price", pre=True)
-    def validate_price(cls, value):
-        if isinstance(value, str) and value.strip() == "":
-            return 0
-        return int(value) if isinstance(value, (int, str)) else value
-
-    @validator("currency", pre=True)
-    def validate_currency(cls, value):
-        if value is None or (isinstance(value, float) and value != value):
-            return "unknown"
-        return str(value)
-
-
 def convert_to_df(listings: list) -> pd.DataFrame:
     data_dicts = [listing.model_dump() for listing in listings]
     return pd.DataFrame(data_dicts)
-
-
-def validate_property_listing_data(df):
-    valid_rows = []
-
-    for _, row in df.iterrows():
-        try:
-            validated_data = PropertyListingData(**row.to_dict())
-            valid_rows.append(validated_data.dict())
-        except ValidationError:
-            logger.error(f"Invalid row: {row.to_dict()}", exc_info=True)
-
-    valid_df = pd.DataFrame(valid_rows)
-
-    return valid_df
-
-
-def clean_imotibg(df):
-    df.columns = [f"imotbg_{i}" for i in df.columns]
-    try:
-        df["price"] = (
-            df["imotbg_price"].str.extract(r"([\d\s]+)").replace(r"\s+", "", regex=True).astype(int, errors="ignore")
-        )
-        df["currency"] = df["imotbg_price"].str.extract(r"(EUR|USD|BGN)")[0]
-
-        df["offer_type"] = df["imotbg_title"].str.split(" ").str[0].str.strip()
-        df["property_type"] = df["imotbg_title"].str.split(" ").str[1].str.strip()
-
-        df["city"] = df["imotbg_location"].str.split(",").str[0].str.strip()
-        df["neighborhood"] = df["imotbg_location"].str.split(",").str[1].str.strip()
-
-        df["description"] = df["imotbg_description"]
-        df["contact_info"] = df["imotbg_contact_info"]
-        df["agency_url"] = df["imotbg_agency_url"]
-        df["details_url"] = df["imotbg_details_url"]
-        df["num_photos"] = df["imotbg_num_photos"]
-        df["date_added"] = df["imotbg_date_added"]
-        df["title"] = df["imotbg_title"]
-        df["site"] = Site.IMOTBG
-        df["floor"] = -1
-        df["price_per_m2"] = -1
-
-    except Exception as e:
-        logger.error(f"Error cleaning imotibg data: {e}", exc_info=True)
-
-    df = validate_property_listing_data(df)
-    return df
 
 
 def run_imotibg(url, timeout, output_file):
@@ -131,44 +45,11 @@ def run_imotibg(url, timeout, output_file):
 
     save_raw_csv(scraper.raw_path_prefix, df)
 
-    df = clean_imotibg(df)
+    df = ImotBg.to_property_listing_df(df)
+    df = PropertyListingData.to_property_listing(df)
     file_name = get_now_for_filename()
-    df.to_csv(f"data/processed/imotbg/{file_name}.csv", index=False)
-
-    return df
-
-
-def clean_imotinet(df):
-    try:
-        df["title"] = df["title"]
-
-        df["offer_type"] = df["title"].str.split(" ").str[0].str.strip()
-        df["property_type"] = df["title"].str.split(" ").str[1].str.strip()
-
-        df["price"] = (
-            df["price_and_currency"]
-            .str.extract(r"([\d\s]+)")
-            .replace(r"\s+", "", regex=True)
-            .astype(int, errors="ignore")
-        )
-        df["currency"] = df["price_and_currency"].str.extract(r"(EUR|USD|BGN)")[0]
-
-        df["city"] = df["location"].str.split(",").str[0].str.strip()
-        df["neighborhood"] = df["location"].str.split(",").str[1].str.strip()
-
-        df["description"] = df["description"]
-        df["agency_url"] = df["agency"]
-
-        df["details_url"] = df["details_url"]
-        df["num_photos"] = df["num_photos"]
-        df["date_added"] = df["date_added"]
-        df["site"] = Site.IMOTINET
-        df["floor"] = df["floor"]
-        df["price_per_m2"] = df["price_per_m2"]
-        df["ref_no"] = df["reference_number"]
-
-    except Exception as e:
-        logger.error(f"Error cleaning imotinet data: {e}", exc_info=True)
+    df.to_csv(f"data/processed/imotbg/{file_name}.csv", index=False, encoding="utf-8")
+    logger.info(f"Saved data to data/processed/imotbg/{file_name}.csv")
 
     return df
 
@@ -190,8 +71,8 @@ def run_imotinet(url, timeout, output_file):
     print(df)
     save_raw_csv(scraper.raw_path_prefix, df)
 
-    df = clean_imotinet(df)
-
+    df = ImotiNetParser.to_property_listing_df(df)
+    df = PropertyListingData.to_property_listing(df)
     file_name = get_now_for_filename()
     df.to_csv(f"data/processed/imotinet/{file_name}.csv", index=False)
     print(df)
@@ -208,37 +89,53 @@ def run_homesbg(url, timeout, output_file):
         timeout=timeout,
     )
     res = scraper.process()
-    output_file = "homesbg.csv"
+    output_file = output_file
 
-    homesbg_mapping = {
-        "reference_number": "reference_number",  # Map from 'listing_id'
-        "type": None,  # Not present, add placeholder
-        "url": "url",
-        "title": "title",
-        "location": "location",
-        "description": "description",
-        "price": "price",
-        "photos": "photos",  # Combine from 'photos' and 'num_photos' if needed
-        "is_favorite": "is_favorite",
-        "contact_info": "contact_info",  # Map from 'agency_url'
-        "price_per_m2": "price_per_m2",
-        "floor": "floor",
-        "is_top_ad": "is_top_ad",
-    }
-    df = pd.DataFrame(res)
     df = convert_to_df(res)
-
+    # print(df.columns)
+    # print(df)
     save_raw_csv(scraper.raw_path_prefix, df)
 
-    df = df.rename(columns=homesbg_mapping)
+    df = HomesBgParser.to_property_listing_df(df)
+    df = PropertyListingData.to_property_listing(df)
+    file_name = get_now_for_filename()
 
-    # Ensure all columns exist
-    required_columns = list(homesbg_mapping.values())
-    for col in required_columns:
-        if col and col not in df.columns:
-            df[col] = None
+    output_dir = "data/processed/homesbg"
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    df.to_csv(f"data/processed/homesbg/{file_name}.csv", index=False)
+    # print(df)
+    return df
 
-    df.to_csv(output_file, index=False)
+    # homesbg_mapping = {
+    #     "reference_number": "reference_number",  # Map from 'listing_id'
+    #     "type": None,  # Not present, add placeholder
+    #     "url": "url",
+    #     "title": "title",
+    #     "location": "location",
+    #     "description": "description",
+    #     "price": "price",
+    #     "photos": "photos",  # Combine from 'photos' and 'num_photos' if needed
+    #     "is_favorite": "is_favorite",
+    #     "contact_info": "contact_info",  # Map from 'agency_url'
+    #     "price_per_m2": "price_per_m2",
+    #     "floor": "floor",
+    #     "is_top_ad": "is_top_ad",
+    # }
+    # df = pd.DataFrame(res)
+    # df = convert_to_df(res)
+
+    # save_raw_csv(scraper.raw_path_prefix, df)
+
+    # df = df.rename(columns=homesbg_mapping)
+
+    # # Ensure all columns exist
+    # required_columns = list(homesbg_mapping.values())
+    # for col in required_columns:
+    #     if col and col not in df.columns:
+    #         df[col] = None
+
+    # df.to_csv(output_file, index=False)
     return df
 
 
@@ -256,12 +153,12 @@ def main(url, timeout, encoding, output_file):
     # todo add endocing
     executor = ScraperExecutor(timeout)
 
-    # executor.add_task(run_imotibg, url, timeout, "imotbg_old.csv")
+    executor.add_task(run_imotibg, url, timeout, "imotbg.csv")
     executor.add_task(run_imotinet, url, timeout, "imotinet.csv")
-    # executor.add_task(run_homesbg, url, timeout, "homesbg.csv")
+    executor.add_task(run_homesbg, url, timeout, "homesbg.csv")
 
     results = executor.run()  # noqa
-    # concatenate_results(results)
+    concatenate_results(results)
 
 
 if __name__ == "__main__":

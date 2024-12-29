@@ -1,6 +1,7 @@
 import os
 from datetime import datetime
 from typing import Any, Dict, Optional
+from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup, Tag
 
@@ -13,10 +14,11 @@ def get_text_or_none(
     tag: BeautifulSoup,
     selector: tuple,
     attribute: Optional[Dict[str, Any]] = None,
+    strip: bool = True,
 ) -> Optional[str]:
     try:
         element = tag.find(*selector, **(attribute or {}))
-        return element.get_text(strip=True) if element else None
+        return element.get_text(strip=strip) if element else None
     except Exception as e:
         logger.warning(f"Error getting text from {selector}: {e}")
         return None
@@ -52,4 +54,12 @@ def save_raw_csv(raw_path_prefix, df):
 
     result_file_name = os.path.join(raw_path_prefix, f"{formatted_date}.csv")
 
-    df.to_csv(result_file_name, index=False)
+    df.to_csv(result_file_name, index=False, encoding="utf-8")
+
+
+def validate_url(url):
+    try:
+        result = urlparse(url)
+        return all([result.scheme, result.netloc])
+    except ValueError:
+        return False

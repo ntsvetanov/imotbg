@@ -5,14 +5,15 @@ from bs4 import BeautifulSoup, Tag
 from pydantic import BaseModel, HttpUrl, ValidationError
 
 from src.logger_setup import get_logger
+from src.models import PropertyType, Site
 from src.utils import get_tag_href_or_none, get_tag_text_or_none, parse_soup
 
 logger = get_logger(__name__)
 
 
 class RawImotBgListingData(BaseModel):
-    price: Optional[str]
     title: Optional[str]
+    price: Optional[str]
     listing_id: Optional[str]
     location: Optional[str]
     description: Optional[str]
@@ -58,6 +59,7 @@ class ImotBg:
                 text=lambda text: text and self.DETAILS_TEXT_KEYWORD in text,
             )
             date_added = datetime.now().isoformat()
+
             result = {
                 "price": get_tag_text_or_none(table, ("div", {"class": self.PRICE_DIV_CLASS})),
                 "title": title_tag.get_text(strip=True) if title_tag else None,
@@ -67,14 +69,14 @@ class ImotBg:
                     else None
                 ),
                 "location": get_tag_text_or_none(table, ("a", {"class": self.LOCATION_LINK_CLASS})),
-                "description": description_td.get_text(strip=True) if description_td else None,
+                "description": (description_td.get_text(strip=True) if description_td else None),
                 "contact_info": (
                     description_td.get_text(strip=True).split(self.PHONE_LABEL)[-1].strip()
                     if description_td and self.PHONE_LABEL in description_td.get_text(strip=True)
                     else None
                 ),
                 "agency_url": f"{self.PROTOCOL}{get_tag_href_or_none(table, self.AGENCY_LOGO_CLASS)}",
-                "details_url": f"{self.PROTOCOL}{details_tag.get('href', '')}" if details_tag else None,
+                "details_url": (f"{self.PROTOCOL}{title_tag.get('href', '')}" if title_tag else None),
                 "num_photos": (details_tag.get_text(strip=True).split(" ")[-2] if details_tag else None),
                 "date_added": date_added,
             }
@@ -105,3 +107,54 @@ class ImotBg:
         except Exception as e:
             logger.error(f"Error fetching total pages: {e}", exc_info=True)
             return 1
+
+    @classmethod
+    def convert_map(cls, property_type: str) -> PropertyType:
+        map_property_type = {
+            "1-СТАЕН": PropertyType.EDNOSTAEN,
+            "2-СТАЕН": PropertyType.DVUSTAEN,
+            "3-СТАЕН": PropertyType.TRISTAEN,
+            "4-СТАЕН": PropertyType.CHETIRISTAEN,
+            "МЕЗОНЕТ": PropertyType.MESONET,
+        }
+        return map_property_type.get(
+            property_type,
+            "",
+        )
+
+    @classmethod
+    def to_property_listing_df(cls, df):
+        df.columns = [f"imotbg_{i}" for i in df.columns]
+        try:
+            df["title"] = df["imotbg_title"]
+            df["price"] = (
+                df["imotbg_price"]
+                .str.extract(r"([\d\s]+)")
+                .replace(r"\s+", "", regex=True)
+                .astype(int, errors="ignore")
+            )
+            df["currency"] = df["imotbg_price"].str.extract(r"(EUR|USD|BGN)")[0]
+
+            df["offer_type"] = df["imotbg_title"].str.split(" ").str[0].str.strip()
+
+            df["property_type"] = df["imotbg_title"].str.split(" ").str[1].str.strip()
+            df["property_type"] = df["property_type"].apply(cls.convert_map)
+
+            df["city"] = df["imotbg_location"].str.split(",").str[0].str.strip()
+            df["neighborhood"] = df["imotbg_location"].str.split(",").str[1].str.strip()
+
+            df["description"] = df["imotbg_description"]
+            df["contact_info"] = df["imotbg_contact_info"]
+            df["agency_url"] = df["imotbg_agency_url"]
+            df["details_url"] = df["imotbg_details_url"]
+            df["num_photos"] = df["imotbg_num_photos"]
+            df["date_added"] = df["imotbg_date_added"]
+            df["site"] = Site.IMOTBG
+            df["floor"] = ""
+            df["price_per_m2"] = ""
+            df["ref_no"] = df["imotbg_listing_id"]
+
+        except Exception as e:
+            logger.error(f"Error cleaning imotibg data: {e}", exc_info=True)
+
+        return df

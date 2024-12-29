@@ -38,10 +38,8 @@ class ImotiNetScraper:
         results = []
         for page_num in range(1, self.total_pages + 1):
             page_url = self.url.replace("page=1", f"page={page_num}")
-            print(page_url)
             html_content = self.fetch_page(page_url)
             logger.info(f"Processing {page_url} (page {page_num} of {self.total_pages})")
             results.extend(self.parser.parse_listings(html_content))
 
-        print(results)
         return results
