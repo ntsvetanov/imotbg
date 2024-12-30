@@ -19,7 +19,7 @@ class HttpClient:
     def fetch(
         self,
         url: str,
-        encoding: str = "utf-8",
+        encoding: str,
     ) -> str:
         with httpx.Client(
             headers=self.headers,

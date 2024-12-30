@@ -163,7 +163,10 @@ class ImotiNetParser:
     @classmethod
     def convert_map(cls, property_type: str) -> PropertyType:
         map_property_type = {
+            "продава Едностаен апартамент": PropertyType.EDNOSTAEN,
             "продава Двустаен апартамент": PropertyType.DVUSTAEN,
+            "продава Тристаен апартамент": PropertyType.TRISTAEN,
+            "продава Четиристаен апартамент": PropertyType.CHETIRISTAEN,
         }
         return map_property_type.get(
             property_type,
@@ -204,5 +207,4 @@ class ImotiNetParser:
 
         except Exception as e:
             logger.error(f"Error cleaning imotinet data: {e}", exc_info=True)
-        print(df.columns)
         return df

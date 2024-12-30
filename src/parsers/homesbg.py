@@ -130,7 +130,6 @@ class HomesBgParser:
 
     @classmethod
     def convert_property_type(cls, property_type: str) -> PropertyType:
-        print("property_type = ", property_type)
         type_mapping = {
             "Едностаен": PropertyType.EDNOSTAEN,
             "Двустаен": PropertyType.DVUSTAEN,

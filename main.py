@@ -5,14 +5,9 @@ import pandas as pd
 
 from src.infrastructure.scraper_executor import ScraperExecutor
 from src.logger_setup import get_logger
-from src.models import PropertyListingData
-from src.parsers.homesbg import HomesBgParser
-from src.parsers.imotbg import ImotBg
-from src.parsers.imotinet import ImotiNetParser
 from src.scrapers.homesbg import HomesBgScraper
 from src.scrapers.imotbg import ImotBgScraper
 from src.scrapers.imotinet import ImotiNetScraper
-from src.utils import get_now_for_filename, save_raw_csv
 
 DEFAULT_TIMEOUT = 10
 DEFAULT_ENCODING = "utf-8"
@@ -20,13 +15,6 @@ DEFAULT_URL = "https://www.imoti.net/bg/obiavi/r/prodava/sofia/dvustaen/?sid=hY0
 DEFAULT_OUTPUT_FILE = "imotbg.csv"
 
 logger = get_logger(__name__)
-
-# define enum class fot site type
-
-
-def convert_to_df(listings: list) -> pd.DataFrame:
-    data_dicts = [listing.model_dump() for listing in listings]
-    return pd.DataFrame(data_dicts)
 
 
 def run_imotibg(url, timeout, output_file):
@@ -39,23 +27,12 @@ def run_imotibg(url, timeout, output_file):
         encoding=encoding,
         timeout=timeout,
     )
-    res = scraper.process()
-    output_file = output_file
-    df = convert_to_df(res)
-
-    save_raw_csv(scraper.raw_path_prefix, df)
-
-    df = ImotBg.to_property_listing_df(df)
-    df = PropertyListingData.to_property_listing(df)
-    file_name = get_now_for_filename()
-    df.to_csv(f"data/processed/imotbg/{file_name}.csv", index=False, encoding="utf-8")
-    logger.info(f"Saved data to data/processed/imotbg/{file_name}.csv")
-
+    df = scraper.process(output_file)
     return df
 
 
 def run_imotinet(url, timeout, output_file):
-    url = "https://www.imoti.net/bg/obiavi/r/prodava/sofia--oborishte/dvustaen/?sid=iidgfw"
+    url = "https://www.imoti.net/bg/obiavi/r/prodava/sofia--oborishte/?sid=i9hPRh"
 
     encoding = "utf-8"
     scraper = ImotiNetScraper(
@@ -63,19 +40,7 @@ def run_imotinet(url, timeout, output_file):
         encoding=encoding,
         timeout=timeout,
     )
-
-    res = scraper.process()
-    output_file = output_file
-    df = convert_to_df(res)
-    print(df.columns)
-    print(df)
-    save_raw_csv(scraper.raw_path_prefix, df)
-
-    df = ImotiNetParser.to_property_listing_df(df)
-    df = PropertyListingData.to_property_listing(df)
-    file_name = get_now_for_filename()
-    df.to_csv(f"data/processed/imotinet/{file_name}.csv", index=False)
-    print(df)
+    df = scraper.process(output_file)
     return df
 
 
@@ -88,64 +53,15 @@ def run_homesbg(url, timeout, output_file):
         encoding=encoding,
         timeout=timeout,
     )
-    res = scraper.process()
-    output_file = output_file
-
-    df = convert_to_df(res)
-    # print(df.columns)
-    # print(df)
-    save_raw_csv(scraper.raw_path_prefix, df)
-
-    df = HomesBgParser.to_property_listing_df(df)
-    df = PropertyListingData.to_property_listing(df)
-    file_name = get_now_for_filename()
-
-    output_dir = "data/processed/homesbg"
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    df.to_csv(f"data/processed/homesbg/{file_name}.csv", index=False)
-    # print(df)
-    return df
-
-    # homesbg_mapping = {
-    #     "reference_number": "reference_number",  # Map from 'listing_id'
-    #     "type": None,  # Not present, add placeholder
-    #     "url": "url",
-    #     "title": "title",
-    #     "location": "location",
-    #     "description": "description",
-    #     "price": "price",
-    #     "photos": "photos",  # Combine from 'photos' and 'num_photos' if needed
-    #     "is_favorite": "is_favorite",
-    #     "contact_info": "contact_info",  # Map from 'agency_url'
-    #     "price_per_m2": "price_per_m2",
-    #     "floor": "floor",
-    #     "is_top_ad": "is_top_ad",
-    # }
-    # df = pd.DataFrame(res)
-    # df = convert_to_df(res)
-
-    # save_raw_csv(scraper.raw_path_prefix, df)
-
-    # df = df.rename(columns=homesbg_mapping)
-
-    # # Ensure all columns exist
-    # required_columns = list(homesbg_mapping.values())
-    # for col in required_columns:
-    #     if col and col not in df.columns:
-    #         df[col] = None
-
-    # df.to_csv(output_file, index=False)
+    df = scraper.process(output_file)
     return df
 
 
 def concatenate_results(results):
     results = [df.reset_index(drop=True) for df in results]
-    # print([i.columns for i in results])
-    for i in results:
-        print(i.columns, i.shape)
     combined_df = pd.concat(results)
-    combined_df.to_csv("combined_results.csv", index=False)
+    path = os.path.join("data", "combined_results.csv")
+    combined_df.to_csv(path, index=False)
     return combined_df
 
 

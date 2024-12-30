@@ -24,7 +24,7 @@ class RawImotBgListingData(BaseModel):
     date_added: Optional[datetime]
 
 
-class ImotBg:
+class ImotBgParser:
     PRICE_DIV_CLASS = "price"
     LOCATION_LINK_CLASS = "lnk2"
     TITLE_LINK_CLASS = "lnk1"

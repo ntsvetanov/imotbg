@@ -1,5 +1,9 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from src.logger_setup import get_logger
+
+logger = get_logger(__name__)
+
 
 class ScraperExecutor:
     def __init__(self, timeout):
@@ -22,5 +26,5 @@ class ScraperExecutor:
                     result = future.result()
                     results.append(result)
                 except Exception as e:
-                    print(f"Error in task {func.__name__}: {e}")
+                    logger.error(f"Error in task {func.__name__}: {e}", exc_info=True)
         return results

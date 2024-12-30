@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
+import pandas as pd
 from bs4 import BeautifulSoup, Tag
 
 from src.logger_setup import get_logger
@@ -45,16 +46,23 @@ def get_now_for_filename():
     return formatted_date
 
 
-def save_raw_csv(raw_path_prefix, df):
-    formatted_date = get_now_for_filename()
-
-    print(f"Saving raw data to {raw_path_prefix}")
+def save_df_to_csv(raw_path_prefix, date_for_name, df):
     if not os.path.exists(raw_path_prefix):
         os.makedirs(raw_path_prefix)
 
-    result_file_name = os.path.join(raw_path_prefix, f"{formatted_date}.csv")
+    result_file_name = os.path.join(raw_path_prefix, f"{date_for_name}.csv")
 
-    df.to_csv(result_file_name, index=False, encoding="utf-8")
+    if df.empty:
+        logger.warning(f"Dataframe is empty, not saving to {result_file_name}")
+        return
+
+    logger.info(f"Saving {df.shape[0]} rows and {df.shape[1]} columns to {result_file_name}")
+
+    df.to_csv(
+        result_file_name,
+        index=False,
+        encoding="utf-8",
+    )
 
 
 def validate_url(url):
@@ -63,3 +71,8 @@ def validate_url(url):
         return all([result.scheme, result.netloc])
     except ValueError:
         return False
+
+
+def convert_to_df(listings: list) -> pd.DataFrame:
+    data_dicts = [listing.model_dump() for listing in listings]
+    return pd.DataFrame(data_dicts)
