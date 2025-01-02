@@ -47,9 +47,6 @@ class ImotiNetParser:
 
     BASE_URL = "https://www.imoti.net"
 
-    def __init__(self):
-        self.soup = None
-
     def extract_listing_data(self, listing: Tag) -> RawImotiNetListingData:
         try:
             image_tag = listing.find(self.IMAGE_TAG)

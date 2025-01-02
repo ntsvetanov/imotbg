@@ -9,7 +9,6 @@ from src.models import PropertyListingData
 from src.parsers.imotbg import ImotBgParser
 from src.utils import (
     convert_to_df,
-    get_now_for_filename,
     save_df_to_csv,
 )
 
@@ -21,24 +20,24 @@ DEFAULT_HEADERS = None
 class ImotBgScraper:
     def __init__(
         self,
-        url: str,
+        date_for_name: str,
         encoding: str = "windows-1251",
         headers: Optional[dict] = None,
         timeout: int = 10,
-        raw_path_prefix="",
-        process_path_prefix="",
+        result_folder="data",
+        raw_file_path="raw",
+        process_file_path="processed",
+        site_name="imotbg",
     ):
-        self.url = url
+        self.date_for_name = date_for_name
         self.encoding = encoding
 
         if headers is None:
             headers = DEFAULT_HEADERS
 
-        if not raw_path_prefix:
-            raw_path_prefix = os.path.join("data", "raw", "imotbg")
-
-        if not process_path_prefix:
-            process_path_prefix = os.path.join("data", "processed", "imotbg")
+        self.raw_file_path = os.path.join(result_folder, raw_file_path, site_name)
+        self.process_file_path = os.path.join(result_folder, process_file_path, site_name)
+        self.site_name = site_name
 
         self.http_client = HttpClient(
             headers=headers,
@@ -46,11 +45,6 @@ class ImotBgScraper:
         )
 
         self.parser = ImotBgParser()
-
-        self.total_pages = -1
-
-        self.raw_path_prefix = raw_path_prefix
-        self.process_path_prefix = process_path_prefix
 
     def fetch_page(self, url: str) -> str:
         try:
@@ -62,33 +56,37 @@ class ImotBgScraper:
             logger.error(f"Failed to fetch page {url}", exc_info=True)
             raise
 
-    def process(self, output_file) -> pd.DataFrame:
-        html_content = self.fetch_page(self.url)
-        if self.total_pages == -1:
-            self.total_pages = self.parser.get_total_pages(html_content)
+    def process(self, url) -> pd.DataFrame:
+        html_content = self.fetch_page(url)
+        total_pages = self.parser.get_total_pages(html_content)
 
         results = []
-        for page_num in range(1, self.total_pages + 1):
-            page_url = self.url.replace("f1=1", f"f1={page_num}")
+        for page_num in range(1, total_pages + 1):
+            page_url = url.replace("f1=1", f"f1={page_num}")
             html_content = self.fetch_page(page_url)
-            logger.info(f"Processing {page_url} page {page_num} of {self.total_pages}")
+            logger.info(f"Processing {page_url} page {page_num} of {total_pages}")
             processed_listings = self.parser.parse_listings(html_content)
             results.extend(processed_listings)
 
-        df = convert_to_df(results)
-        date_for_name = get_now_for_filename()
-        save_df_to_csv(
-            self.raw_path_prefix,
-            date_for_name,
-            df,
-        )
-
-        df = self.parser.to_property_listing_df(df)
+        self.raw_df = convert_to_df(results)
+        df = self.parser.to_property_listing_df(self.raw_df)
         df = PropertyListingData.to_property_listing(df)
-        save_df_to_csv(
-            self.process_path_prefix,
-            date_for_name,
-            df,
-        )
+        self.df = df
 
         return df
+
+    def save_raw_data(self, url_idx=0):
+        save_df_to_csv(
+            df=self.raw_df,
+            result_data_path=self.raw_file_path,
+            date_for_name=self.date_for_name,
+            url_idx=url_idx,
+        )
+
+    def save_processed_data(self, url_idx=0):
+        save_df_to_csv(
+            df=self.df,
+            result_data_path=self.process_file_path,
+            date_for_name=self.date_for_name,
+            url_idx=url_idx,
+        )

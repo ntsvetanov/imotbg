@@ -37,9 +37,6 @@ class ImotBgParser:
     PROTOCOL = "https:"
     DETAILS_TEXT_KEYWORD = "снимки"
 
-    def __init__(self):
-        self.soup = None
-
     def get_all_listing_tables(self, soup: BeautifulSoup) -> List[Tag]:
         if not soup:
             raise ValueError("Soup object is not initialized.")

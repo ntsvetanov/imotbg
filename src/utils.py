@@ -46,11 +46,16 @@ def get_now_for_filename():
     return formatted_date
 
 
-def save_df_to_csv(raw_path_prefix, date_for_name, df):
-    if not os.path.exists(raw_path_prefix):
-        os.makedirs(raw_path_prefix)
+def save_df_to_csv(
+    df,
+    result_data_path,
+    date_for_name,
+    url_idx,
+):
+    if not os.path.exists(result_data_path):
+        os.makedirs(result_data_path)
 
-    result_file_name = os.path.join(raw_path_prefix, f"{date_for_name}.csv")
+    result_file_name = os.path.join(result_data_path, f"{date_for_name}_{url_idx}.csv")
 
     if df.empty:
         logger.warning(f"Dataframe is empty, not saving to {result_file_name}")
