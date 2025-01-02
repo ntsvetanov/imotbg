@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 
 
 def run_imotibg(url, timeout, output_file):
-    url = "https://www.imot.bg/pcgi/imot.cgi?act=3&slink=bhcl5k&f1=1"
+    url = "https://www.imot.bg/pcgi/imot.cgi?act=3&slink=bi18s2&f1=1"
 
     encoding = "windows-1251"
 
@@ -32,7 +32,7 @@ def run_imotibg(url, timeout, output_file):
 
 
 def run_imotinet(url, timeout, output_file):
-    url = "https://www.imoti.net/bg/obiavi/r/prodava/sofia--oborishte/?sid=i9hPRh"
+    url = "https://www.imoti.net/bg/obiavi/r/prodava/sofia/?page=1&sid=h892j0"
 
     encoding = "utf-8"
     scraper = ImotiNetScraper(
@@ -45,7 +45,13 @@ def run_imotinet(url, timeout, output_file):
 
 
 def run_homesbg(url, timeout, output_file):
-    url = "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&neighbourhoods%5B%5D=488&typeId=ApartmentSell"
+    neighborhood_ids = [
+        487,  # Oborishte
+        527,  # Hladilnika
+        424,  # Iztok
+    ]
+    neighborhood_ids = ",".join(str(id) for id in neighborhood_ids)
+    url = f"https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&neighbourhoods%5B%5D={neighborhood_ids}&typeId=ApartmentSell"
 
     encoding = "utf-8"
     scraper = HomesBgScraper(

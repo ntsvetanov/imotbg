@@ -17,7 +17,7 @@ def clean_price(value: Optional[str]) -> Optional[float]:
         cleaned_value = value.split()[0].replace(",", "")  # Remove commas and take the numeric part
         return float(cleaned_value)
     except ValueError:
-        logger.error(f"Failed to clean price value: {value}")
+        logger.error(f"Failed to clean price value: {value}", exc_info=True)
         return None
 
 
@@ -111,7 +111,7 @@ class HomesBgParser:
 
             return RawHomesBgListingData(**data)
         except ValidationError as ve:
-            logger.error(f"Validation error for listing data: {ve}")
+            logger.error(f"Validation error for listing data: {ve}", exc_info=True)
             return RawHomesBgListingData()
         except Exception as e:
             logger.error(f"Error extracting listing data: {e}", exc_info=True)

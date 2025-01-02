@@ -32,7 +32,7 @@ class HttpClient:
                 response.raise_for_status()
                 return response.text
             except httpx.RequestError as e:
-                logger.error(f"Error fetching content from {url}: {e}")
+                logger.error(f"Error fetching content from {url}: {e}", exc_info=True)
                 raise
 
     def fetch_json(
@@ -49,5 +49,5 @@ class HttpClient:
                 response.raise_for_status()
                 return response.json()
             except httpx.RequestError as e:
-                logger.error(f"Error fetching content from {url}: {e}")
+                logger.error(f"Error fetching content from {url}: {e}", exc_info=True)
                 raise

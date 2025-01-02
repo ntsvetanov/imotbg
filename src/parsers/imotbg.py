@@ -83,7 +83,7 @@ class ImotBgParser:
 
             return RawImotBgListingData(**result)
         except ValidationError as ve:
-            logger.error(f"Validation error for listing data: {ve}")
+            logger.error(f"Validation error for listing data: {ve}", exc_info=True)
             return RawImotBgListingData()
 
     def parse_listings(self, page_content: str) -> List[Dict]:
