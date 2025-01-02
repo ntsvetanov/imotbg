@@ -26,8 +26,8 @@ jobs:
         run: mkdir -p data
       - name: Install requirements
         run: pip install -r requirements.txt
-      - name: Run Scraper
-        run: python scraper.py
+      - name: Run all scrapers
+        run: python main.py
       - name: Commit and push if it changed
         run: |-
           git config user.name "Automated"
