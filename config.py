@@ -9,8 +9,5 @@ class AppConfig(BaseSettings):
     mailtrap_send_to_email: str
     mailtrap_token: str
 
-    class Config:
-        env_file = ".env"
-
 
 app_config = AppConfig()
