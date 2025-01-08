@@ -76,7 +76,7 @@ class ImotBgScraper:
         return df
 
     def save_raw_data(self, url_idx=0):
-        save_df_to_csv(
+        return save_df_to_csv(
             df=self.raw_df,
             result_data_path=self.raw_file_path,
             date_for_name=self.date_for_name,

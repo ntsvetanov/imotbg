@@ -59,7 +59,8 @@ def save_df_to_csv(
 
     if df.empty:
         logger.warning(f"Dataframe is empty, not saving to {result_file_name}")
-        return
+
+        return False
 
     logger.info(f"Saving {df.shape[0]} rows and {df.shape[1]} columns to {result_file_name}")
 
@@ -68,6 +69,8 @@ def save_df_to_csv(
         index=False,
         encoding="utf-8",
     )
+
+    return True
 
 
 def validate_url(url):
@@ -81,3 +84,7 @@ def validate_url(url):
 def convert_to_df(listings: list) -> pd.DataFrame:
     data_dicts = [listing.model_dump() for listing in listings]
     return pd.DataFrame(data_dicts)
+
+
+def get_now_date():
+    return datetime.now().strftime("%Y-%m-%d")

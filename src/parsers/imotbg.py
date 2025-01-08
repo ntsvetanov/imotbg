@@ -121,6 +121,9 @@ class ImotBgParser:
 
     @classmethod
     def to_property_listing_df(cls, df):
+        if df.empty:
+            return df
+
         df.columns = [f"imotbg_{i}" for i in df.columns]
         try:
             df["title"] = df["imotbg_title"]
