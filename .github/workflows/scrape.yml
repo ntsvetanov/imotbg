@@ -20,8 +20,8 @@ jobs:
       - name: Set environment variables
         run: echo "Setting up environment variables"
         env:
-          MAILTRAP_HOST: ${{ MAILTRAP_HOST }}
-          MAILTRAP_SENDER_EMAIL: ${{ MAILTRAP_SENDER_EMAIL }}
+          MAILTRAP_HOST: ${{ vars.MAILTRAP_HOST }}
+          MAILTRAP_SENDER_EMAIL: ${{ vars.MAILTRAP_SENDER_EMAIL }}
           MAILTRAP_SEND_TO_EMAIL: ${{ secrets.MAILTRAP_SEND_TO_EMAIL }}
           MAILTRAP_TOKEN: ${{ secrets.MAILTRAP_TOKEN }}
 
