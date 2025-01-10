@@ -52,18 +52,22 @@ def run_imotibg(
     )
 
     results = []
+    email_msg = []
     for url_idx, url in enumerate(urls):
         logger.info(f"Processing Imot Bg URL: {url}")
         df = scraper.process(url=url)
         is_saved = scraper.save_raw_data(url_idx)
         if not is_saved:
-            email_client.send_email(
-                subject=f"No data available for ImotBg {get_now_date()}",
-                text=f"No data available for \nImotBg on {date_for_name}\nurl {url} with url_idx {url_idx}",
-            )
+            email_msg.append(f"No data available for ImotBg on {date_for_name}\nurl {url} with url_idx {url_idx}")
+            continue
         scraper.save_processed_data(url_idx)
         results.append(df)
 
+    if email_msg:
+        email_client.send_email(
+            subject=f"No data available for ImotBg {get_now_date()}",
+            text="\n".join(email_msg),
+        )
     return pd.concat(results).reset_index(drop=True)
 
 
@@ -84,26 +88,26 @@ def run_imotinet(
     )
 
     results = []
+    email_msg = []
     for url_idx, url in enumerate(urls):
         logger.info(f"Processing Imoti Net URL: {url}")
         df = scraper.process(url=url)
         is_saved = scraper.save_raw_data(url_idx)
         if not is_saved:
-            email_client.send_email(
-                subject=f"No data available for ImotBg {get_now_date()}",
-                text=f"No data available for \nImotBg on {date_for_name}\nurl {url} with url_idx {url_idx}",
-            )
+            email_msg.append(f"No data available for ImotiNet on {date_for_name}\nurl {url} with url_idx {url_idx}")
+            continue
         scraper.save_processed_data(url_idx)
         results.append(df)
 
+    if email_msg:
+        email_client.send_email(
+            subject=f"No data available for ImotiNet {get_now_date()}",
+            text="\n".join(email_msg),
+        )
     return pd.concat(results).reset_index(drop=True)
 
 
-def run_homesbg(
-    timeout: int,
-    result_folder: str,
-    date_for_name: str,
-):
+def get_homes_bg_apartment_url():
     NEIGHBORHOOD_IDS = [
         487,  # Оборище
         526,  # Хиподрума
@@ -116,28 +120,51 @@ def run_homesbg(
         517,  # Сухата Река
         437,  # Медицинска академия
     ]
+    HOMES_BG_URL_TEMPLATE = (
+        "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell"
+    )
 
-    neighborhood_ids = ",".join(map(str, NEIGHBORHOOD_IDS))
-    HOMES_BG_URL_TEMPLATE = "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&neighbourhoods%5B%5D={neighborhoods}&typeId=ApartmentSell"
-    url = HOMES_BG_URL_TEMPLATE.format(neighborhoods=neighborhood_ids)
+    urls = []
+    for neighborhood_id in NEIGHBORHOOD_IDS:
+        url = f"{HOMES_BG_URL_TEMPLATE}&neighbourhoods%5B%5D={neighborhood_id}"
+        urls.append(url)
 
-    logger.info(f"Processing Homes Bg URL: {url}")
+    return urls
+
+
+def run_homesbg(
+    timeout: int,
+    result_folder: str,
+    date_for_name: str,
+):
+    urls = get_homes_bg_apartment_url()
+    urls += [
+        "https://www.homes.bg/api/offers??currencyId=1&filterOrderBy=0&locationId=0&typeId=LandAgro",
+    ]
     scraper = initialize_scraper(
         scraper_class=HomesBgScraper,
         timeout=timeout,
         result_folder=result_folder,
         date_for_name=date_for_name,
     )
-    df = scraper.process(url=url)
-    url_idx = 0
-    is_saved = scraper.save_raw_data(url_idx)
-    if not is_saved:
+    results = []
+    email_msg = []
+    for url_idx, url in enumerate(urls):
+        logger.info(f"Processing Homes Bg URL: {url}")
+        df = scraper.process(url=url)
+        is_saved = scraper.save_raw_data(url_idx)
+        if not is_saved:
+            email_msg.append(f"No data available for HomesBg on {date_for_name}\nurl {url} with url_idx {url_idx}")
+            continue
+        scraper.save_processed_data()
+        results.append(df)
+
+    if email_msg:
         email_client.send_email(
-            subject=f"No data available for ImotBg {get_now_date()}",
-            text=f"No data available for \nImotBg on {date_for_name}\nurl {url} with url_idx {url_idx}",
+            subject=f"No data available for HomesBg {get_now_date()}",
+            text="\n".join(email_msg),
         )
-    scraper.save_processed_data()
-    return df
+    return pd.concat(results).reset_index(drop=True)
 
 
 def concatenate_results(

@@ -16,6 +16,18 @@ class Site(enum.Enum):
     HOMESBG = "homes.bg"
 
 
+class OfferType(enum.Enum):
+    SELL = "продава"
+    RENT = "дава под наем"
+
+
+class MainPropertyType(enum.Enum):
+    HOUSE = "къща"
+    APARTMENT = "апартамент"
+    OFFICE = "офис"
+    LAND = "земеделска земя"
+
+
 class PropertyType(enum.Enum):
     UNKNOWN = ""
     EDNOSTAEN = "едностаен"

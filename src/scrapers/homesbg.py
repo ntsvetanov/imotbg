@@ -61,15 +61,17 @@ class HomesBgScraper:
             increment = 100
             cnt = 0
             url = url
-            offers_count = 10000
+            offers_count = 20000
             max_pages = 30
 
             while True:
-                url = f"{url}&startIndex={start_index}&stopIndex={stop_index}"
-                logger.info(f"Fetching data from: {url}")
-                data = self.fetch_data(url)
-                if offers_count == 10000:
-                    offers_count = data.get("offersCount", 10000)
+                # re-pace startIndex and stopIndex
+
+                url_with_indices = f"{url}&startIndex={start_index}&stopIndex={stop_index}"
+                logger.info(f"Fetching data from: {url_with_indices}")
+                data = self.fetch_data(url_with_indices)
+                if offers_count == 20000:
+                    offers_count = data.get("offersCount", 20000)
                     logger.info(f"Offers count: {offers_count}")
 
                 if not data:
@@ -78,11 +80,8 @@ class HomesBgScraper:
                 if not data.get("result"):
                     logger.info("No more results available.")
                     break
-                if offers_count < stop_index:
-                    logger.info("No more results available.")
-                    break
 
-                results.extend(self.parser.parse_listings(data))
+                results.extend(self.parser.parse_listings(data, url))
 
                 if not data.get("hasMoreItems", False):
                     break
@@ -93,8 +92,9 @@ class HomesBgScraper:
                 if cnt > max_pages:
                     break
 
-            self.raw_df = convert_to_df(results)
-            df = self.parser.to_property_listing_df(self.raw_df)
+            df = convert_to_df(results)
+            self.raw_df = df.copy()
+            df = self.parser.to_property_listing_df(df)
             df = PropertyListingData.to_property_listing(df)
             self.df = df
 

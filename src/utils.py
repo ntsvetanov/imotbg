@@ -59,7 +59,6 @@ def save_df_to_csv(
 
     if df.empty:
         logger.warning(f"Dataframe is empty, not saving to {result_file_name}")
-
         return False
 
     logger.info(f"Saving {df.shape[0]} rows and {df.shape[1]} columns to {result_file_name}")

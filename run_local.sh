@@ -1,1 +1,1 @@
-export $(cat ../docker/.env | xargs) && python main.py
+export $(cat .env | xargs) && python main.py
