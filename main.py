@@ -68,6 +68,9 @@ def run_imotibg(
             subject=f"No data available for ImotBg {get_now_date()}",
             text="\n".join(email_msg),
         )
+    if not results:
+        logger.warning("No data available for ImotBg")
+        return pd.DataFrame()
     return pd.concat(results).reset_index(drop=True)
 
 
@@ -104,6 +107,9 @@ def run_imotinet(
             subject=f"No data available for ImotiNet {get_now_date()}",
             text="\n".join(email_msg),
         )
+    if not results:
+        logger.warning("No data available for ImotiNet")
+        return pd.DataFrame()
     return pd.concat(results).reset_index(drop=True)
 
 
@@ -164,6 +170,9 @@ def run_homesbg(
             subject=f"No data available for HomesBg {get_now_date()}",
             text="\n".join(email_msg),
         )
+    if not results:
+        logger.warning("No data available for ImotiNet")
+        return pd.DataFrame()
     return pd.concat(results).reset_index(drop=True)
 
 
