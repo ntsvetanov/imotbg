@@ -11,13 +11,14 @@ from src.scrapers.imotbg import ImotBgScraper
 from src.scrapers.imotinet import ImotiNetScraper
 from src.utils import get_now_date, get_now_for_filename
 
-DEFAULT_TIMEOUT = 30
+DEFAULT_TIMEOUT = 300
 DEFAULT_ENCODING = "utf-8"
 DEFAULT_OUTPUT_FILE = "data"
 
 logger = get_logger(__name__)
 
 email_client = EmailClient()
+# TODO add named filter by neighborhood and add it to name of the csv
 
 
 def initialize_scraper(
@@ -42,6 +43,7 @@ def run_imotibg(
         "https://www.imot.bg/pcgi/imot.cgi?act=3&slink=bjaqz2&f1=1",
         "https://www.imot.bg/pcgi/imot.cgi?act=3&slink=bjarb7&f1=1",
         "https://www.imot.bg/pcgi/imot.cgi?act=3&slink=bjarj1&f1=1",
+        "https://www.imot.bg/pcgi/imot.cgi?act=3&slink=bjri0i&f1=1",
     ]
 
     scraper = initialize_scraper(
@@ -80,8 +82,8 @@ def run_imotinet(
     date_for_name: str,
 ):
     urls = [
-        "https://www.imoti.net/bg/obiavi/r/prodava/sofia/?page=1&sid=h892j0",
-        "https://www.imoti.net/bg/obiavi/r/prodava/sofia/?page=1&sid=gzSTlT",
+        "https://www.imoti.net/bg/obiavi/r/prodava/sofia/?page=1&sid=gFM8jD",
+        "https://www.imoti.net/bg/obiavi/r/prodava/sofia/?page=1&sid=iKI3oo",
     ]
     scraper = initialize_scraper(
         scraper_class=ImotiNetScraper,
@@ -125,6 +127,9 @@ def get_homes_bg_apartment_url():
         503,  # Редута
         517,  # Сухата Река
         437,  # Медицинска академия
+        447,  # Лозенец
+        403,  # Дианабад
+        412,  # Дървеница
     ]
     HOMES_BG_URL_TEMPLATE = (
         "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell"
@@ -197,12 +202,20 @@ def main(
     executor = ScraperExecutor(timeout)
 
     executor.add_task(run_imotibg, timeout, result_folder, date_for_name)
-    executor.add_task(run_imotinet, timeout, result_folder, date_for_name)
-    executor.add_task(run_homesbg, timeout, result_folder, date_for_name)
+    # executor.add_task(run_imotinet, timeout, result_folder, date_for_name)
+    # executor.add_task(run_homesbg, timeout, result_folder, date_for_name)
 
     results = executor.run()
-    result_df = concatenate_results(results, result_folder, date_for_name)
-    logger.info(f"Scraping completed. Combined {result_df.shape}results saved to {result_folder}")
+    logger.info(f"Executor completed with results: {results}")
+    for result in results:
+        logger.info(f"Result type: {type(result)} | Result preview: {result.shape}")
+
+    try:
+        result_df = concatenate_results(results, result_folder, date_for_name)
+        logger.info(f"Scraping completed. Combined {result_df.shape}results saved to {result_folder}")
+    except Exception as e:
+        logger.error(f"Error saving results: {e}", exc_info=True)
+        logger.info("Scraping completed. No results saved.")
 
 
 if __name__ == "__main__":

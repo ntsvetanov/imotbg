@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from bs4 import Tag
+from pydantic import Field
 
 from src.logger_setup import get_logger
 from src.models import PropertyType, Site
@@ -13,21 +14,22 @@ from pydantic import BaseModel
 
 
 class RawImotiNetListingData(BaseModel):
-    title: Optional[str]
-    price_and_currency: Optional[str]
-    location: Optional[str]
-    details_url: Optional[str]
-    property_type: Optional[str]
-    area: Optional[str]
-    agency: Optional[str]
-    agency_url: Optional[str]
-    floor: Optional[str]
-    price_per_m2: Optional[str]
-    description: Optional[str]
-    reference_number: Optional[str]
-    is_top_ad: bool
-    num_photos: Optional[str]
-    date_added: Optional[datetime] = None
+    title: Optional[str] = Field(None, description="Title of the listing")
+    price_and_currency: Optional[str] = Field(None, description="Price along with currency")
+    location: Optional[str] = Field(None, description="Location of the property")
+    details_url: Optional[str] = Field(None, description="URL to the property details")
+    property_type: Optional[str] = Field(None, description="Type of the property (e.g., apartment, house)")
+    area: Optional[str] = Field(None, description="Area of the property in square meters")
+    agency: Optional[str] = Field(None, description="Agency managing the listing")
+    floor: Optional[str] = Field(None, description="Floor information (e.g., '1/5')")
+    price_per_m2: Optional[str] = Field(None, description="Price per square meter")
+    description: Optional[str] = Field(None, description="Description of the property")
+
+    is_top_ad: bool = Field(False, description="Whether the ad is a top ad")
+    num_photos: Optional[str] = Field(None, description="Number of photos in the listing")
+    date_added: Optional[datetime] = Field(None, description="Date when the listing was added")
+    search_url: Optional[str] = Field(None, description="URL used to fetch the listing data")
+    total_offers: Optional[int] = Field(None, description="Total number of offers found on the search URL")
 
 
 class ImotiNetParser:
@@ -44,10 +46,15 @@ class ImotiNetParser:
     REFERENCE_NUMBER_KEY = "Референтен номер:"
     FLOOR_KEY = "Етаж:"
     PRICE_PER_M2_KEY = "Цена на /м"
+    NUM_PHOTOS_KEY = "pic-video-info-number"
 
     BASE_URL = "https://www.imoti.net"
 
-    def extract_listing_data(self, listing: Tag) -> RawImotiNetListingData:
+    def extract_listing_data(
+        self,
+        listing: Tag,
+        search_url: str,
+    ) -> RawImotiNetListingData:
         try:
             image_tag = listing.find(self.IMAGE_TAG)
             image_url = image_tag.get("src", None) if image_tag else None
@@ -92,29 +99,23 @@ class ImotiNetParser:
                 "details_url": details_url,
                 "num_photos": get_text_or_none(listing, ("span", {"class": self.PIC_VIDEO_INFO_CLASS})),
                 "agency": agency,
-                "agency_url": None,  # Agency URL is not present in the listing
                 "floor": floor,
                 "price_per_m2": price_per_m2,
                 "description": description_paragraphs,
-                "reference_number": None,
                 "is_top_ad": bool(listing.find("span", {"class": self.FLAG_TOP_CLASS})),
                 "date_added": datetime.now().isoformat(),
+                "search_url": search_url,
             }
             if not validate_url(data["details_url"]):
                 data["details_url"] = None
 
-            # Add base URL to relative paths
             if data["details_url"] and not data["details_url"].startswith("http"):
                 data["details_url"] = f"{self.BASE_URL}{data['details_url']}"
             if image_url and not image_url.startswith("http"):
                 image_url = f"{self.BASE_URL}{image_url}"
 
-            # Include the image URL in the data
             data["image_url"] = image_url
 
-            data["data_added"] = datetime.now().isoformat()
-
-            # Return the parsed data as a Pydantic model
             return RawImotiNetListingData(**data)
 
         except Exception as e:
@@ -128,16 +129,25 @@ class ImotiNetParser:
                 floor=None,
                 price_per_m2=None,
                 description=None,
-                reference_number=None,
                 is_top_ad=False,
                 num_photos=None,
             )
 
-    def parse_listings(self, page_content: str) -> List[RawImotiNetListingData]:
+    def parse_listings(
+        self,
+        page_content: str,
+        search_url: str,
+    ) -> List[RawImotiNetListingData]:
         try:
             soup = parse_soup(page_content)
             listings = soup.find_all("li", {"class": self.LISTING_CLASS})
-            return [self.extract_listing_data(listing) for listing in listings]
+            return [
+                self.extract_listing_data(
+                    listing=listing,
+                    search_url=search_url,
+                )
+                for listing in listings
+            ]
         except Exception as e:
             logger.error(f"Error parsing listings: {e}", exc_info=True)
             return []
@@ -164,6 +174,8 @@ class ImotiNetParser:
             "продава Двустаен апартамент": PropertyType.DVUSTAEN,
             "продава Тристаен апартамент": PropertyType.TRISTAEN,
             "продава Четиристаен апартамент": PropertyType.CHETIRISTAEN,
+            "продава Мезонет": PropertyType.MESONET,
+            "продава Многостаен апартамент": PropertyType.MNOGOSTAEN,
         }
         return map_property_type.get(
             property_type,
@@ -192,7 +204,7 @@ class ImotiNetParser:
             df["neighborhood"] = df["location"].str.split(",").str[1].str.strip()
 
             df["description"] = df["description"]
-            df["agency_url"] = df["agency_url"]
+            df["agency_url"] = None
             df["agency"] = df["agency"]
             df["details_url"] = df["details_url"]
             df["num_photos"] = df["num_photos"]
@@ -200,7 +212,7 @@ class ImotiNetParser:
             df["site"] = Site.IMOTINET
             df["floor"] = df["floor"]
             df["price_per_m2"] = df["price_per_m2"]
-            df["ref_no"] = df["reference_number"]
+            df["ref_no"] = None
 
         except Exception as e:
             logger.error(f"Error cleaning imotinet data: {e}", exc_info=True)

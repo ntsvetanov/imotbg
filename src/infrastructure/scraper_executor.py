@@ -4,6 +4,12 @@ from src.logger_setup import get_logger
 
 logger = get_logger(__name__)
 
+from concurrent.futures import TimeoutError
+
+from src.logger_setup import get_logger
+
+logger = get_logger(__name__)
+
 
 class ScraperExecutor:
     def __init__(self, timeout, max_workers=10):
@@ -28,14 +34,21 @@ class ScraperExecutor:
                     func, args, kwargs = future_to_task[future]
                     try:
                         result = future.result()
+                        logger.info(f"Task {func.__name__} completed with result type: {type(result)}")
                         results.append(result)
                     except Exception as e:
-                        logger.error(f"Error in task {func.__name__}: {e}", exc_info=True)
+                        logger.error(
+                            f"Error in task {func.__name__} with args {args} and kwargs {kwargs}: {e}", exc_info=True
+                        )
                         if exception_handler:
                             exception_handler(func, args, kwargs, e)
-            except Exception:
-                logger.critical("Critical error during task execution. Cancelling all tasks.", exc_info=True)
+            except TimeoutError:
+                logger.error("Timeout occurred while waiting for tasks to complete.", exc_info=True)
                 for future in future_to_task.keys():
                     future.cancel()
-
+            except Exception as e:
+                logger.critical(f"Critical error during task execution: {e}. Cancelling all tasks.", exc_info=True)
+                for future in future_to_task.keys():
+                    future.cancel()
+        logger.info(f"All tasks completed. Results collected: {len(results)}")
         return results

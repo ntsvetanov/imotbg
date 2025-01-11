@@ -1,4 +1,5 @@
 import os
+import time
 from typing import Optional
 
 import pandas as pd
@@ -48,10 +49,12 @@ class ImotBgScraper:
 
     def fetch_page(self, url: str) -> str:
         try:
-            return self.http_client.fetch(
+            data = self.http_client.fetch(
                 url=url,
                 encoding=self.encoding,
             )
+            time.sleep(1)
+            return data
         except Exception:
             logger.error(f"Failed to fetch page {url}", exc_info=True)
             raise
@@ -65,11 +68,18 @@ class ImotBgScraper:
             page_url = url.replace("f1=1", f"f1={page_num}")
             html_content = self.fetch_page(page_url)
             logger.info(f"Processing {page_url} page {page_num} of {total_pages}")
-            processed_listings = self.parser.parse_listings(html_content)
+            processed_listings = self.parser.parse_listings(
+                page_content=html_content,
+                search_url=page_url,
+            )
             results.extend(processed_listings)
 
-        self.raw_df = convert_to_df(results)
-        df = self.parser.to_property_listing_df(self.raw_df)
+        total_offers = len(results)
+        raw_df = convert_to_df(results)
+        raw_df["total_offers"] = total_offers
+        self.raw_df = raw_df.copy()
+
+        df = self.parser.to_property_listing_df(raw_df)
         df = PropertyListingData.to_property_listing(df)
         self.df = df
 

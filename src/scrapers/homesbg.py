@@ -1,4 +1,5 @@
 import os
+import time
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -48,6 +49,7 @@ class HomesBgScraper:
     def fetch_data(self, url) -> Dict:
         try:
             response = self.http_client.fetch_json(url)
+            time.sleep(1)
             return response
         except Exception as e:
             logger.error(f"Failed to fetch data from {url}: {e}", exc_info=True)
@@ -92,9 +94,10 @@ class HomesBgScraper:
                 if cnt > max_pages:
                     break
 
-            df = convert_to_df(results)
-            self.raw_df = df.copy()
-            df = self.parser.to_property_listing_df(df)
+            raw_df = convert_to_df(results)
+            self.raw_df = raw_df.copy()
+
+            df = self.parser.to_property_listing_df(raw_df)
             df = PropertyListingData.to_property_listing(df)
             self.df = df
 

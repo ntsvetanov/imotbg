@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 from bs4 import BeautifulSoup, Tag
-from pydantic import BaseModel, HttpUrl, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from src.logger_setup import get_logger
 from src.models import PropertyType, Site
@@ -12,22 +12,25 @@ logger = get_logger(__name__)
 
 
 class RawImotBgListingData(BaseModel):
-    title: Optional[str]
-    price: Optional[str]
-    listing_id: Optional[str]
-    location: Optional[str]
-    description: Optional[str]
-    contact_info: Optional[str]
-    agency_url: Optional[HttpUrl]
-    details_url: Optional[HttpUrl]
-    num_photos: Optional[str]
-    date_added: Optional[datetime]
+    listing_id: Optional[str] = Field(None, description="Unique identifier for the listing.")
+    price: Optional[str] = Field(None, description="Price of the listing in the appropriate currency.")
+    title: Optional[str] = Field(None, description="Title of the listing.")
+    location: Optional[str] = Field(None, description="Location details of the listing.")
+    description: Optional[str] = Field(None, description="Description of the listing.")
+    contact_info: Optional[str] = Field(None, description="Contact information for the listing.")
+    agency_url: Optional[str] = Field(None, description="URL of the agency managing the listing.")
+    details_url: Optional[str] = Field(None, description="URL with detailed information about the listing.")
+    num_photos: Optional[str] = Field(None, description="Number of photos available for the listing.")
+    date_added: Optional[datetime] = Field(None, description="Date when the listing was added.")
+    offer_type: Optional[str] = Field(None, description="Type of offer (e.g., sale, rent, etc.).")
+    search_url: Optional[str] = Field(None, description="URL used to fetch the listing data.")
+    total_offers: Optional[int] = Field(None, description="Total number of offers found on the search URL.")
 
 
 class ImotBgParser:
     PRICE_DIV_CLASS = "price"
-    LOCATION_LINK_CLASS = "lnk2"
     TITLE_LINK_CLASS = "lnk1"
+    LOCATION_LINK_CLASS = "lnk2"
     DETAILS_LINK_CLASS = "lnk3"
     AGENCY_LOGO_CLASS = "logoLink"
     DESCRIPTION_CELL_PROPS = {"width": "520", "colspan": "3"}
@@ -46,7 +49,11 @@ class ImotBgParser:
         logger.info(f"Found {len(listing_tables)} listing tables.")
         return listing_tables
 
-    def extract_listing_data(self, table: Tag) -> RawImotBgListingData:
+    def extract_listing_data(
+        self,
+        table: Tag,
+        search_url: str,
+    ) -> RawImotBgListingData:
         try:
             title_tag = table.find("a", class_=self.TITLE_LINK_CLASS)
             description_td = table.find("td", self.DESCRIPTION_CELL_PROPS)
@@ -56,6 +63,10 @@ class ImotBgParser:
                 text=lambda text: text and self.DETAILS_TEXT_KEYWORD in text,
             )
             date_added = datetime.now().isoformat()
+            try:
+                offer_type = title_tag.get_text(strip=True).split(" ")[0]
+            except AttributeError:
+                offer_type = None
 
             result = {
                 "price": get_tag_text_or_none(table, ("div", {"class": self.PRICE_DIV_CLASS})),
@@ -76,6 +87,8 @@ class ImotBgParser:
                 "details_url": (f"{self.PROTOCOL}{title_tag.get('href', '')}" if title_tag else None),
                 "num_photos": (details_tag.get_text(strip=True).split(" ")[-2] if details_tag else None),
                 "date_added": date_added,
+                "search_url": search_url,
+                "offer_type": offer_type,
             }
 
             return RawImotBgListingData(**result)
@@ -83,11 +96,21 @@ class ImotBgParser:
             logger.error(f"Validation error for listing data: {ve}", exc_info=True)
             return RawImotBgListingData()
 
-    def parse_listings(self, page_content: str) -> List[Dict]:
+    def parse_listings(
+        self,
+        page_content: str,
+        search_url: str,
+    ) -> List[Dict]:
         try:
             soup = parse_soup(page_content)
             tables = self.get_all_listing_tables(soup)
-            return [self.extract_listing_data(table) for table in tables]
+            return [
+                self.extract_listing_data(
+                    table=table,
+                    search_url=search_url,
+                )
+                for table in tables
+            ]
         except Exception as e:
             logger.error(f"Error parsing listings: {e}", exc_info=True)
             return []
@@ -113,6 +136,7 @@ class ImotBgParser:
             "3-СТАЕН": PropertyType.TRISTAEN,
             "4-СТАЕН": PropertyType.CHETIRISTAEN,
             "МЕЗОНЕТ": PropertyType.MESONET,
+            "MНОГОСТАЕН": PropertyType.MNOGOSTAEN,
         }
         return map_property_type.get(
             property_type,
