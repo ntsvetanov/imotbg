@@ -6,8 +6,7 @@ import pandas as pd
 
 from src.infrastructure.clients.http_client import HttpClient
 from src.logger_setup import get_logger
-from src.models import PropertyListingData
-from src.parsers.homesbg import HomesBgParser
+from src.parsers.homesbg import HomesBgParser, RawHomesBgListingData
 from src.utils import convert_to_df, save_df_to_csv
 
 logger = get_logger(__name__)
@@ -97,11 +96,9 @@ class HomesBgScraper:
             raw_df = convert_to_df(results)
             self.raw_df = raw_df.copy()
 
-            df = self.parser.to_property_listing_df(raw_df)
-            df = PropertyListingData.to_property_listing(df)
-            self.df = df
+            self.df = RawHomesBgListingData.to_listing_data(raw_df)
+            return self.df
 
-            return df
         except Exception as e:
             logger.error(f"Error processing all data: {e}", exc_info=True)
             return pd.DataFrame()

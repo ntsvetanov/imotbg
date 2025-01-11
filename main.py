@@ -18,7 +18,9 @@ DEFAULT_OUTPUT_FILE = "data"
 logger = get_logger(__name__)
 
 email_client = EmailClient()
+
 # TODO add named filter by neighborhood and add it to name of the csv
+# TODO main property type
 
 
 def initialize_scraper(
@@ -178,6 +180,7 @@ def run_homesbg(
     if not results:
         logger.warning("No data available for ImotiNet")
         return pd.DataFrame()
+
     return pd.concat(results).reset_index(drop=True)
 
 
@@ -202,8 +205,8 @@ def main(
     executor = ScraperExecutor(timeout)
 
     executor.add_task(run_imotibg, timeout, result_folder, date_for_name)
-    # executor.add_task(run_imotinet, timeout, result_folder, date_for_name)
-    # executor.add_task(run_homesbg, timeout, result_folder, date_for_name)
+    executor.add_task(run_imotinet, timeout, result_folder, date_for_name)
+    executor.add_task(run_homesbg, timeout, result_folder, date_for_name)
 
     results = executor.run()
     logger.info(f"Executor completed with results: {results}")
@@ -213,6 +216,8 @@ def main(
     try:
         result_df = concatenate_results(results, result_folder, date_for_name)
         logger.info(f"Scraping completed. Combined {result_df.shape}results saved to {result_folder}")
+    except ValueError:
+        logger.info("No objects to concatenate, No results saved.")
     except Exception as e:
         logger.error(f"Error saving results: {e}", exc_info=True)
         logger.info("Scraping completed. No results saved.")

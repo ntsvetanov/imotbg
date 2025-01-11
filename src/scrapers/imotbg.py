@@ -6,8 +6,7 @@ import pandas as pd
 
 from src.infrastructure.clients.http_client import HttpClient
 from src.logger_setup import get_logger
-from src.models import PropertyListingData
-from src.parsers.imotbg import ImotBgParser
+from src.parsers.imotbg import ImotBgParser, RawImotBgListingData
 from src.utils import (
     convert_to_df,
     save_df_to_csv,
@@ -79,11 +78,8 @@ class ImotBgScraper:
         raw_df["total_offers"] = total_offers
         self.raw_df = raw_df.copy()
 
-        df = self.parser.to_property_listing_df(raw_df)
-        df = PropertyListingData.to_property_listing(df)
-        self.df = df
-
-        return df
+        self.df = RawImotBgListingData.to_listing_data(raw_df)
+        return self.df
 
     def save_raw_data(self, url_idx=0):
         return save_df_to_csv(

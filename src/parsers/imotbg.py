@@ -1,11 +1,12 @@
 from datetime import datetime
 from typing import Dict, List, Optional
 
+import pandas as pd
 from bs4 import BeautifulSoup, Tag
 from pydantic import BaseModel, Field, ValidationError
 
 from src.logger_setup import get_logger
-from src.models import PropertyType, Site
+from src.models import Currency, ListingData, ListingSite, OfferType, PropertyType
 from src.utils import get_tag_href_or_none, get_tag_text_or_none, parse_soup
 
 logger = get_logger(__name__)
@@ -25,6 +26,111 @@ class RawImotBgListingData(BaseModel):
     offer_type: Optional[str] = Field(None, description="Type of offer (e.g., sale, rent, etc.).")
     search_url: Optional[str] = Field(None, description="URL used to fetch the listing data.")
     total_offers: Optional[int] = Field(None, description="Total number of offers found on the search URL.")
+
+    @classmethod
+    def to_property_type(cls, x: str) -> Optional[PropertyType]:
+        property_map = {
+            "1-СТАЕН": PropertyType.EDNOSTAEN,
+            "2-СТАЕН": PropertyType.DVUSTAEN,
+            "3-СТАЕН": PropertyType.TRISTAEN,
+            "4-СТАЕН": PropertyType.CHETIRISTAEN,
+            "МЕЗОНЕТ": PropertyType.MEZONET,
+            "МНОГОСТАЕН": PropertyType.MNOGOSTAEN,
+            "ЗЕМЕДЕЛСКА ЗЕМЯ": PropertyType.LAND,
+        }
+        return property_map.get(x, None)
+
+    @classmethod
+    def to_offer_type(cls, x: str) -> Optional[OfferType]:
+        offer_map = {
+            "продава": OfferType.SELL,
+            "дава под наем": OfferType.RENT,
+        }
+        return offer_map.get(x.lower(), None)
+
+    @classmethod
+    def to_currency(cls, x: str) -> Optional[Currency]:
+        currency_map = {
+            "eur": Currency.EUR,
+            "bgn": Currency.BGN,
+            "лв.": Currency.BGN,
+        }
+        return currency_map.get(x.lower(), None)
+
+    @classmethod
+    def to_price(cls, x: str) -> float:
+        if x is None:
+            return 0.0
+        if not x:
+            return 0.0
+        if isinstance(x, str):
+            x = x.replace(" ", "")
+        try:
+            return float(x)
+        except ValueError:
+            return 0.0
+
+    @classmethod
+    def to_listing_data(cls, df: pd.DataFrame) -> pd.DataFrame:
+        if df.empty:
+            logger.warning("Input DataFrame is empty.")
+            return pd.DataFrame()
+
+        listing_df = pd.DataFrame()
+
+        # Process columns
+        listing_df["raw_title"] = df["title"]
+        listing_df["raw_description"] = df["description"]
+
+        # Extract price and currency
+        price = df["price"].str.extract(r"(\d{1,3}(?: \d{3})*|\d+)")
+        currency = df["price"].str.extract(r"(?i)(eur|bgn|лв.)").fillna("")
+        dds = df["price"].str.contains(r"(?:ДДС|без ДДС)", case=False, na=False)
+
+        listing_df["price"] = price[0].apply(cls.to_price)
+        listing_df["currency"] = currency[0].apply(cls.to_currency)
+        listing_df["without_dds"] = dds
+
+        # Process title for offer type and property type
+        process_title = df["title"].str.split()
+        listing_df["offer_type"] = process_title.str.get(0).apply(cls.to_offer_type)
+        listing_df["property_type"] = process_title.str.get(1).apply(cls.to_property_type)
+
+        # Process location
+        processed_location = df["location"].str.split(",")
+        listing_df["city"] = (
+            processed_location.str.get(0)
+            .str.replace(r"\bград\b", "", regex=True)
+            .str.replace(r"\bгр. \b", "", regex=True)
+            .str.replace(r"\bс. \b", "", regex=True)
+            .str.strip()
+        )
+        listing_df["neighborhood"] = processed_location.str.get(1)
+
+        # Map remaining columns
+        listing_df["contact_info"] = df["contact_info"]
+        listing_df["agency"] = None
+        listing_df["agency_url"] = df["agency_url"]
+        listing_df["details_url"] = df["details_url"]
+        listing_df["num_photos"] = df["num_photos"]
+        listing_df["search_url"] = df["search_url"]
+        listing_df["site"] = ListingSite.IMOT_BG
+        listing_df["total_offers"] = df["total_offers"]
+        listing_df["ref_no"] = df["listing_id"]
+        listing_df["date_time_added"] = pd.to_datetime(df["date_added"], errors="coerce")
+        listing_df["date"] = listing_df["date_time_added"].dt.date
+
+        validated_rows = []
+        for index, row in listing_df.iterrows():
+            try:
+                validated_row = ListingData(**row.to_dict())
+                validated_rows.append(validated_row.model_dump())
+            except ValidationError as e:
+                logger.error(f"Validation error at row {index}: {e}. Row data: {row.to_dict()}")
+
+        result_df = pd.DataFrame(validated_rows)
+        result_df = result_df.fillna("")
+        return result_df
 
 
 class ImotBgParser:
@@ -127,58 +233,3 @@ class ImotBgParser:
         except Exception as e:
             logger.error(f"Error fetching total pages: {e}", exc_info=True)
             return 1
-
-    @classmethod
-    def convert_map(cls, property_type: str) -> PropertyType:
-        map_property_type = {
-            "1-СТАЕН": PropertyType.EDNOSTAEN,
-            "2-СТАЕН": PropertyType.DVUSTAEN,
-            "3-СТАЕН": PropertyType.TRISTAEN,
-            "4-СТАЕН": PropertyType.CHETIRISTAEN,
-            "МЕЗОНЕТ": PropertyType.MESONET,
-            "MНОГОСТАЕН": PropertyType.MNOGOSTAEN,
-        }
-        return map_property_type.get(
-            property_type,
-            "",
-        )
-
-    @classmethod
-    def to_property_listing_df(cls, df):
-        if df.empty:
-            return df
-
-        df.columns = [f"imotbg_{i}" for i in df.columns]
-        try:
-            df["title"] = df["imotbg_title"]
-            df["price"] = (
-                df["imotbg_price"]
-                .str.extract(r"([\d\s]+)")
-                .replace(r"\s+", "", regex=True)
-                .astype(int, errors="ignore")
-            )
-            df["currency"] = df["imotbg_price"].str.extract(r"(EUR|USD|BGN)")[0]
-
-            df["offer_type"] = df["imotbg_title"].str.split(" ").str[0].str.strip()
-
-            df["property_type"] = df["imotbg_title"].str.split(" ").str[1].str.strip()
-            df["property_type"] = df["property_type"].apply(cls.convert_map)
-
-            df["city"] = df["imotbg_location"].str.split(",").str[0].str.strip()
-            df["neighborhood"] = df["imotbg_location"].str.split(",").str[1].str.strip()
-
-            df["description"] = df["imotbg_description"]
-            df["contact_info"] = df["imotbg_contact_info"]
-            df["agency_url"] = df["imotbg_agency_url"]
-            df["details_url"] = df["imotbg_details_url"]
-            df["num_photos"] = df["imotbg_num_photos"]
-            df["date_added"] = df["imotbg_date_added"]
-            df["site"] = Site.IMOTBG
-            df["floor"] = ""
-            df["price_per_m2"] = ""
-            df["ref_no"] = df["imotbg_listing_id"]
-
-        except Exception as e:
-            logger.error(f"Error cleaning imotibg data: {e}", exc_info=True)
-
-        return df
