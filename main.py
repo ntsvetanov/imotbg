@@ -21,6 +21,7 @@ email_client = EmailClient()
 
 # TODO add named filter by neighborhood and add it to name of the csv
 # TODO main property type
+# TODO make one generic scraper class and use dependency injection to pass the parser
 
 
 def initialize_scraper(
