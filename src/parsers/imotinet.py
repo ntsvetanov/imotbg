@@ -3,8 +3,8 @@ from typing import List, Optional
 
 import pandas as pd
 from bs4 import Tag
-from nbformat import ValidationError
-from pydantic import Field
+
+from pydantic import Field, ValidationError
 
 from src.logger_setup import get_logger
 from src.models import Currency, ListingData, ListingSite, OfferType, PropertyType
