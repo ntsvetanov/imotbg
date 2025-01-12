@@ -48,7 +48,7 @@ class HomesBgScraper:
     def fetch_data(self, url) -> Dict:
         try:
             response = self.http_client.fetch_json(url)
-            time.sleep(1)
+            time.sleep(2)
             return response
         except Exception as e:
             logger.error(f"Failed to fetch data from {url}: {e}", exc_info=True)
