@@ -5,15 +5,15 @@ on:
     - cron: "0 6,18 * * *"
   workflow_dispatch:
 
-env:
-  MAILTRAP_HOST: ${{ vars.MAILTRAP_HOST }}
-  MAILTRAP_SENDER_EMAIL: ${{ vars.MAILTRAP_SENDER_EMAIL }}
-  MAILTRAP_SEND_TO_EMAIL: ${{ secrets.MAILTRAP_SEND_TO_EMAIL }}
-  MAILTRAP_TOKEN: ${{ secrets.MAILTRAP_TOKEN }}
-
 jobs:
   scrape-sites:
     runs-on: ubuntu-latest
+    environment: prod
+    env:
+      MAILTRAP_HOST: ${{ vars.MAILTRAP_HOST }}
+      MAILTRAP_SENDER_EMAIL: ${{ vars.MAILTRAP_SENDER_EMAIL }}
+      MAILTRAP_SEND_TO_EMAIL: ${{ secrets.MAILTRAP_SEND_TO_EMAIL }}
+      MAILTRAP_TOKEN: ${{ secrets.MAILTRAP_TOKEN }}
     strategy:
       matrix:
         scraper:
