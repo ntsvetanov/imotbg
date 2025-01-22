@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 from typing import List, Type
 
@@ -24,18 +25,14 @@ email_client = EmailClient()
 # TODO make one generic scraper class and use dependency injection to pass the parser
 
 # Configuration Constants
-IMOT_BG_URLS = [
-    "https://www.imot.bg/pcgi/imot.cgi?act=3&slink=bjaqz2&f1=1",
-    "https://www.imot.bg/pcgi/imot.cgi?act=3&slink=bjarb7&f1=1",
-    "https://www.imot.bg/pcgi/imot.cgi?act=3&slink=bjarj1&f1=1",
-    "https://www.imot.bg/pcgi/imot.cgi?act=3&slink=bjri0i&f1=1",
-]
-IMOTI_NET_URLS = [
-    "https://www.imoti.net/bg/obiavi/r/prodava/sofia/?page=1&sid=gFM8jD",
-    "https://www.imoti.net/bg/obiavi/r/prodava/sofia/?page=1&sid=iKI3oo",
-]
-HOMES_BG_NEIGHBORHOODS = [487, 526, 421, 527, 515, 424, 423, 503, 517, 437, 447, 403, 412]
-HOMES_BG_URL_TEMPLATE = "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell"
+
+from enum import Enum
+
+
+class ScraperName(Enum):
+    IMOT_BG = "ImotBg"
+    IMOTI_NET = "ImotiNet"
+    HOMES_BG = "HomesBg"
 
 
 def initialize_scraper(
@@ -88,8 +85,11 @@ def run_scraper(
     return pd.concat(results).reset_index(drop=True)
 
 
-def get_homes_bg_urls():
-    urls = [f"{HOMES_BG_URL_TEMPLATE}&neighbourhoods%5B%5D={n}" for n in HOMES_BG_NEIGHBORHOODS]
+def get_homes_bg_urls(urls_ids):
+    HOMES_BG_URL_TEMPLATE = (
+        "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell"
+    )
+    urls = [f"{HOMES_BG_URL_TEMPLATE}&neighbourhoods%5B%5D={n}" for n in urls_ids]
     urls.append("https://www.homes.bg/api/offers??currencyId=1&filterOrderBy=0&locationId=0&typeId=LandAgro")
     return urls
 
@@ -102,14 +102,40 @@ def concatenate_results(results: List[pd.DataFrame], result_folder: str, date_fo
     return combined_df
 
 
-def main(timeout: int, result_folder: str):
+def run_all_scrapers(
+    url_config,
+    result_folder: str,
+):
     date_for_name = get_now_for_filename()
+    timeout = DEFAULT_TIMEOUT
     executor = ScraperExecutor(timeout)
 
-    executor.add_task(run_scraper, ImotBgScraper, IMOT_BG_URLS, timeout, result_folder, date_for_name, "ImotBg")
-    executor.add_task(run_scraper, ImotiNetScraper, IMOTI_NET_URLS, timeout, result_folder, date_for_name, "ImotiNet")
     executor.add_task(
-        run_scraper, HomesBgScraper, get_homes_bg_urls(), timeout, result_folder, date_for_name, "HomesBg"
+        run_scraper,
+        ImotBgScraper,
+        url_config.get(ScraperName.IMOT_BG.value),
+        timeout,
+        result_folder,
+        date_for_name,
+        ScraperName.IMOT_BG.value,
+    )
+    executor.add_task(
+        run_scraper,
+        ImotiNetScraper,
+        url_config.get(ScraperName.IMOTI_NET.value),
+        timeout,
+        result_folder,
+        date_for_name,
+        ScraperName.IMOTI_NET.value,
+    )
+    executor.add_task(
+        run_scraper,
+        HomesBgScraper,
+        get_homes_bg_urls(url_config.get(ScraperName.HOMES_BG.value)),
+        timeout,
+        result_folder,
+        date_for_name,
+        ScraperName.HOMES_BG.value,
     )
 
     results = executor.run()
@@ -126,14 +152,40 @@ def main(timeout: int, result_folder: str):
         logger.error(f"Error saving results: {e}", exc_info=True)
 
 
+def run_scraper_by_site_name(
+    urls: list,
+    scraper_name: str,
+    result_folder: str,
+):
+    date_for_name = get_now_for_filename()
+    timeout = DEFAULT_TIMEOUT
+
+    scraper_map = {
+        "ImotBg": ImotBgScraper,
+        "ImotiNet": ImotiNetScraper,
+        "HomesBg": HomesBgScraper,
+    }
+
+    scraper_class = scraper_map[scraper_name]
+
+    result = run_scraper(
+        scraper_class,
+        urls,
+        timeout,
+        result_folder,
+        date_for_name,
+        scraper_name,
+    )
+
+    if not result.empty:
+        logger.info(f"{scraper_name} results saved successfully.")
+    else:
+        logger.warning(f"{scraper_name} returned no results.")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Scrape real estate data and save it to a CSV file.")
-    parser.add_argument(
-        "--timeout",
-        type=int,
-        default=DEFAULT_TIMEOUT,
-        help="Request timeout in seconds (default: %(default)s)",
-    )
+
     parser.add_argument(
         "--result_folder",
         type=str,
@@ -141,5 +193,38 @@ if __name__ == "__main__":
         help="Output folder for CSV files (default: %(default)s)",
     )
 
+    parser.add_argument(
+        "--scraper_name",
+        type=str,
+        default="all",
+        help="Name of the scraper to run (default: %(default)s)",
+    )
+
+    with open("url_configs.json", "r") as file:
+        url_config = json.load(file)
+
+    scraper_name = parser.parse_args().scraper_name
+    if scraper_name != "all":
+        logger.info(f"Running scraper for {scraper_name}")
+        site_url_config = url_config.get(scraper_name, None)
+
+        if not site_url_config:
+            logger.error(f"Scraper {scraper_name} not found in url_configs.json")
+            exit(1)
+
+        if scraper_name == "HomesBg":
+            site_url_config = get_homes_bg_urls(site_url_config)
+
+        run_scraper_by_site_name(
+            urls=site_url_config,
+            scraper_name=scraper_name,
+            result_folder=parser.parse_args().result_folder,
+        )
+        exit(0)
+
     args = parser.parse_args()
-    main(timeout=args.timeout, result_folder=args.result_folder)
+
+    run_all_scrapers(
+        url_config=url_config,
+        result_folder=args.result_folder,
+    )
