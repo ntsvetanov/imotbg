@@ -20,6 +20,7 @@ jobs:
           - name: ImotBg
           - name: ImotiNet
           - name: HomesBg
+    continue-on-error: true
     steps:
       - name: Check out this repo
         uses: actions/checkout@v3
