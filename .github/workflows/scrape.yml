@@ -8,19 +8,16 @@ on:
 jobs:
   scrape-sites:
     runs-on: ubuntu-latest
-    environment: prod
-    env:
-      MAILTRAP_HOST: ${{ vars.MAILTRAP_HOST }}
-      MAILTRAP_SENDER_EMAIL: ${{ vars.MAILTRAP_SENDER_EMAIL }}
-      MAILTRAP_SEND_TO_EMAIL: ${{ secrets.MAILTRAP_SEND_TO_EMAIL }}
-      MAILTRAP_TOKEN: ${{ secrets.MAILTRAP_TOKEN }}
+    environment:
+      name: prod
+      url: https://github.com
     strategy:
+      fail-fast: false
       matrix:
         scraper:
           - name: ImotBg
           - name: ImotiNet
           - name: HomesBg
-    continue-on-error: true
     steps:
       - name: Check out this repo
         uses: actions/checkout@v3
@@ -28,9 +25,7 @@ jobs:
           fetch-depth: 0
       - name: Debug environment variables
         run: |
-          echo "MAILTRAP_HOST: $MAILTRAP_HOST"
-          echo "MAILTRAP_SENDER_EMAIL: $MAILTRAP_SENDER_EMAIL"
-          echo "MAILTRAP_SEND_TO_EMAIL: $MAILTRAP_SEND_TO_EMAIL"
+          echo "MAILTRAP_HOST:  ${{ vars.MAILTRAP_SENDER_EMAIL }}"
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
@@ -46,6 +41,11 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run scraper
+        env:
+          MAILTRAP_HOST: "${{ vars.MAILTRAP_HOST }}"
+          MAILTRAP_SENDER_EMAIL: "${{ vars.MAILTRAP_SENDER_EMAIL }}"
+          MAILTRAP_SEND_TO_EMAIL: "${{ secrets.MAILTRAP_SEND_TO_EMAIL }}"
+          MAILTRAP_TOKEN: "${{ secrets.MAILTRAP_TOKEN }}"
         run: python main.py --scraper_name ${{ matrix.scraper.name }} --result_folder results
 
       - name: Commit and push if it changed
