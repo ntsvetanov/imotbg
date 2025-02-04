@@ -23,7 +23,8 @@ email_client = EmailClient()
 # TODO add named filter by neighborhood and add it to name of the csv
 # TODO main property type
 # TODO make one generic scraper class and use dependency injection to pass the parser
-
+# TODO add column remove date of the listing
+# TODO Use https://sqlmodel.tiangolo.com/ for mapping to sqllite
 # Configuration Constants
 
 from enum import Enum
