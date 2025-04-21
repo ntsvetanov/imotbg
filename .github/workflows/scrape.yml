@@ -27,7 +27,7 @@ jobs:
         run: |
           echo "MAILTRAP_HOST:  ${{ vars.MAILTRAP_SENDER_EMAIL }}"
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: '3.11'
           cache: 'pip'
