@@ -221,3 +221,170 @@ class TestImotBgParserPagination:
         next_url = parser.get_next_page_url(soup, url, 2)
 
         assert next_url is None
+
+
+class TestImotBgParserEdgeCases:
+    @pytest.fixture
+    def parser(self):
+        return ImotBgParser()
+
+    def test_extract_listings_no_items(self, parser):
+        soup = BeautifulSoup("<html><body></body></html>", "html.parser")
+        listings = list(parser.extract_listings(soup))
+        assert len(listings) == 0
+
+    def test_extract_listing_missing_title(self, parser):
+        html = """
+        <div class="item">
+            <div class="text">
+                <div class="zaglavie">
+                    <div class="price"><div>100 EUR</div></div>
+                </div>
+            </div>
+        </div>
+        """
+        soup = BeautifulSoup(html, "html.parser")
+        listings = list(parser.extract_listings(soup))
+        assert len(listings) == 1
+        assert listings[0]["title"] == ""
+        assert listings[0]["location"] == ""
+
+    def test_extract_listing_missing_price(self, parser):
+        html = """
+        <div class="item">
+            <div class="text">
+                <div class="zaglavie">
+                    <a class="title saveSlink" href="//www.imot.bg/obiava-123">
+                        Продава 2-СТАЕН<location>София</location>
+                    </a>
+                </div>
+            </div>
+        </div>
+        """
+        soup = BeautifulSoup(html, "html.parser")
+        listings = list(parser.extract_listings(soup))
+        assert listings[0]["price_text"] == ""
+
+    def test_extract_listing_missing_photos_link(self, parser):
+        html = """
+        <div class="item">
+            <div class="text">
+                <div class="zaglavie">
+                    <a class="title saveSlink" href="//www.imot.bg/obiava-123">
+                        Test<location>Sofia</location>
+                    </a>
+                </div>
+            </div>
+        </div>
+        """
+        soup = BeautifulSoup(html, "html.parser")
+        listings = list(parser.extract_listings(soup))
+        assert listings[0]["photos_text"] == ""
+
+    def test_extract_listing_missing_agency(self, parser):
+        html = """
+        <div class="item">
+            <div class="text">
+                <div class="zaglavie">
+                    <a class="title saveSlink" href="//www.imot.bg/obiava-123">
+                        Test<location>Sofia</location>
+                    </a>
+                </div>
+            </div>
+        </div>
+        """
+        soup = BeautifulSoup(html, "html.parser")
+        listings = list(parser.extract_listings(soup))
+        assert listings[0]["agency_name"] == ""
+        assert listings[0]["agency_url"] is None
+
+    def test_extract_contact_from_description_no_phone(self, parser):
+        assert parser._extract_contact_from_description("No phone here") == ""
+
+    def test_extract_contact_from_description_with_phone(self, parser):
+        assert parser._extract_contact_from_description("Info тел.: 0888123456") == "0888123456"
+
+    def test_extract_contact_from_description_multiple_phones(self, parser):
+        assert parser._extract_contact_from_description("тел.: 111 тел.: 222") == "222"
+
+    def test_transform_listing_bgn(self, parser):
+        raw = {
+            "price_text": "250 000 лв.",
+            "title": "Продава 3-СТАЕН",
+            "location": "град Пловдив, Център",
+            "description": "Test",
+            "details_url": "//www.imot.bg/obiava-456",
+            "photos_text": "",
+            "contact_info": "",
+            "agency_name": "",
+            "agency_url": None,
+        }
+        result = parser.transform_listing(raw)
+
+        assert result.price == 250000.0
+        assert result.currency == "BGN"
+        assert result.num_photos is None
+
+    def test_transform_listing_rent(self, parser):
+        raw = {
+            "price_text": "500 EUR",
+            "title": "Под наем 2-СТАЕН",
+            "location": "София, Център",
+            "description": "",
+            "details_url": "//www.imot.bg/obiava-123",
+            "photos_text": "",
+            "contact_info": "",
+            "agency_name": "",
+            "agency_url": None,
+        }
+        result = parser.transform_listing(raw)
+
+        assert result.offer_type == "наем"
+        assert result.property_type == "двустаен"
+
+    def test_transform_listing_missing_location(self, parser):
+        raw = {
+            "price_text": "100 EUR",
+            "title": "Test",
+            "location": "",
+            "description": "",
+            "details_url": "//www.imot.bg/obiava-123",
+            "photos_text": "",
+            "contact_info": "",
+            "agency_name": "",
+            "agency_url": None,
+        }
+        result = parser.transform_listing(raw)
+
+        assert result.city == ""
+        assert result.neighborhood == ""
+
+    def test_pagination_page_one(self, parser):
+        soup = BeautifulSoup("<html><body><div class='item'></div></body></html>", "html.parser")
+        url = "https://www.imot.bg/obiavi/sofia"
+        next_url = parser.get_next_page_url(soup, url, 1)
+
+        assert next_url == "https://www.imot.bg/obiavi/sofia/p-1"
+
+    def test_extract_photo_count_variations(self):
+        assert extract_photo_count("и 5 снимки") == 5
+        assert extract_photo_count("Повече детайли и 20 снимки") == 20
+        assert extract_photo_count("5 снимка") == 5
+
+    def test_extract_title_and_location_no_location_elem(self, parser):
+        html = """
+        <div class="item">
+            <div class="text">
+                <div class="zaglavie">
+                    <a class="title saveSlink" href="//www.imot.bg/obiava-123">
+                        Продава апартамент
+                    </a>
+                </div>
+            </div>
+        </div>
+        """
+        soup = BeautifulSoup(html, "html.parser")
+        item = soup.select_one("div.item")
+        title, location = parser._extract_title_and_location(item)
+        assert title == "Продава апартамент"
+        assert location == ""

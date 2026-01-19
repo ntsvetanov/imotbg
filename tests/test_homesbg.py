@@ -219,3 +219,128 @@ class TestHomesBgParserHelpers:
 
     def test_determine_offer_type_empty(self, parser):
         assert parser._determine_offer_type({}) == "наем"
+
+
+class TestHomesBgParserEdgeCases:
+    @pytest.fixture
+    def parser(self):
+        return HomesBgParser()
+
+    def test_extract_listings_empty_result(self, parser):
+        data = {"searchCriteria": {}, "result": []}
+        listings = list(parser.extract_listings(data))
+        assert len(listings) == 0
+
+    def test_extract_listings_missing_result(self, parser):
+        data = {"searchCriteria": {}}
+        listings = list(parser.extract_listings(data))
+        assert len(listings) == 0
+
+    def test_extract_listings_missing_search_criteria(self, parser):
+        data = {"result": [{"id": 1, "location": "", "price": {}}]}
+        listings = list(parser.extract_listings(data))
+        assert len(listings) == 1
+        assert listings[0]["offer_type"] == "наем"
+
+    def test_extract_listing_missing_price_data(self, parser):
+        data = {"searchCriteria": {}, "result": [{"id": 1, "location": "Лозенец, София"}]}
+        listings = list(parser.extract_listings(data))
+        assert listings[0]["price_value"] is None
+        assert listings[0]["price_currency"] is None
+        assert listings[0]["price_per_m2"] == ""
+
+    def test_extract_listing_empty_photos(self, parser):
+        data = {"searchCriteria": {}, "result": [{"id": 1, "location": "", "price": {}}]}
+        listings = list(parser.extract_listings(data))
+        assert listings[0]["num_photos"] == 0
+
+    def test_extract_listing_missing_fields(self, parser):
+        data = {"searchCriteria": {}, "result": [{}]}
+        listings = list(parser.extract_listings(data))
+        assert listings[0]["title"] is None
+        assert listings[0]["description"] is None
+        assert listings[0]["ref_no"] == ""
+
+    def test_transform_listing_missing_price(self, parser):
+        raw = {
+            "title": "Test",
+            "description": "",
+            "city": "",
+            "neighborhood": "",
+            "price_value": None,
+            "price_currency": None,
+            "price_per_m2": "",
+            "details_url": "/offer/123",
+            "num_photos": 0,
+            "time": None,
+            "offer_type": "продава",
+            "ref_no": "123",
+        }
+        result = parser.transform_listing(raw)
+        assert result.price == 0.0
+
+    def test_transform_listing_string_price(self, parser):
+        raw = {
+            "title": "Test",
+            "description": "",
+            "city": "",
+            "neighborhood": "",
+            "price_value": "150000",
+            "price_currency": "BGN",
+            "price_per_m2": "",
+            "details_url": "/offer/123",
+            "num_photos": 0,
+            "time": None,
+            "offer_type": "продава",
+            "ref_no": "123",
+        }
+        result = parser.transform_listing(raw)
+        assert result.price == 150000.0
+
+    def test_parse_location_multiple_commas(self, parser):
+        city, neighborhood = parser._parse_location("Лозенец, София, България")
+        assert city == "София"
+        assert neighborhood == "Лозенец"
+
+    def test_get_next_page_url_first_page(self, parser):
+        data = {"hasMoreItems": True}
+        url = "https://www.homes.bg/api/offers?typeId=ApartmentSell"
+        next_url = parser.get_next_page_url(data, url, 1)
+        assert "startIndex=0" in next_url
+        assert "stopIndex=100" in next_url
+
+    def test_get_next_page_url_page_three(self, parser):
+        data = {"hasMoreItems": True}
+        url = "https://www.homes.bg/api/offers?typeId=ApartmentSell"
+        next_url = parser.get_next_page_url(data, url, 3)
+        assert "startIndex=200" in next_url
+        assert "stopIndex=300" in next_url
+
+    def test_determine_offer_type_house_sell(self, parser):
+        assert parser._determine_offer_type({"typeId": "HouseSell"}) == "продава"
+
+    def test_determine_offer_type_house_rent(self, parser):
+        assert parser._determine_offer_type({"typeId": "HouseRent"}) == "наем"
+
+    def test_extract_listing_with_all_fields(self, parser):
+        data = {
+            "searchCriteria": {"typeId": "ApartmentSell"},
+            "result": [
+                {
+                    "id": 99999,
+                    "title": "Луксозен апартамент",
+                    "description": "Описание",
+                    "location": "Център, София",
+                    "price": {"value": 500000, "currency": "EUR", "pricePerSquareMeter": "5000 EUR"},
+                    "viewHref": "/offer/99999",
+                    "photos": ["a.jpg", "b.jpg"],
+                    "time": "2026-01-19",
+                }
+            ],
+        }
+        listings = list(parser.extract_listings(data))
+        assert len(listings) == 1
+        assert listings[0]["title"] == "Луксозен апартамент"
+        assert listings[0]["price_value"] == 500000
+        assert listings[0]["num_photos"] == 2
+        assert listings[0]["ref_no"] == "99999"

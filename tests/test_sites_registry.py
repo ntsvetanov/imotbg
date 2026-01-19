@@ -4,6 +4,7 @@ from src.sites import SITE_PARSERS, get_parser
 from src.sites.bazarbg import BazarBgParser
 from src.sites.homesbg import HomesBgParser
 from src.sites.imotbg import ImotBgParser
+from src.sites.imoticom import ImotiComParser
 from src.sites.imotinet import ImotiNetParser
 
 
@@ -24,8 +25,12 @@ class TestSiteParsersRegistry:
         assert "HomesBg" in SITE_PARSERS
         assert SITE_PARSERS["HomesBg"] == HomesBgParser
 
-    def test_registry_has_four_parsers(self):
-        assert len(SITE_PARSERS) == 4
+    def test_registry_contains_imoticom(self):
+        assert "ImotiCom" in SITE_PARSERS
+        assert SITE_PARSERS["ImotiCom"] == ImotiComParser
+
+    def test_registry_has_five_parsers(self):
+        assert len(SITE_PARSERS) == 5
 
 
 class TestGetParser:
@@ -44,6 +49,10 @@ class TestGetParser:
     def test_get_parser_homesbg(self):
         parser = get_parser("HomesBg")
         assert isinstance(parser, HomesBgParser)
+
+    def test_get_parser_imoticom(self):
+        parser = get_parser("ImotiCom")
+        assert isinstance(parser, ImotiComParser)
 
     def test_get_parser_unknown_site(self):
         with pytest.raises(ValueError) as exc_info:

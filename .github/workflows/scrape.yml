@@ -20,12 +20,16 @@ jobs:
       fail-fast: false
       matrix:
         scraper:
-          - name: ImotBg
-            folder: imotbg
-          - name: ImotiNet
-            folder: imotinet
+          - name: BazarBg
+            folder: bazarbg
           - name: HomesBg
             folder: homesbg
+          - name: ImotBg
+            folder: imotbg
+          - name: ImotiCom
+            folder: imoticom
+          - name: ImotiNet
+            folder: imotinet
     steps:
       - name: Check out this repo
         uses: actions/checkout@v4

@@ -136,7 +136,7 @@ class TestMainIntegration:
 
             main()
 
-        assert mock_run.call_count == 4
+        assert mock_run.call_count == 5
 
     @patch("main.load_url_config")
     @patch("main.get_parser")
