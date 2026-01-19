@@ -30,7 +30,7 @@ class TestRunSiteScraper:
 
     def test_run_site_scraper_success(self, mock_scraper, mock_get_parser):
         _, scraper_instance = mock_scraper
-        urls = ["http://test.com/1", "http://test.com/2"]
+        urls = [{"url": "http://test.com/1"}, {"url": "http://test.com/2"}]
 
         result = run_site_scraper("ImotBg", urls, "results")
 
@@ -46,7 +46,7 @@ class TestRunSiteScraper:
     def test_run_site_scraper_handles_exception(self, mock_scraper, mock_get_parser):
         _, scraper_instance = mock_scraper
         scraper_instance.scrape.side_effect = Exception("Network error")
-        urls = ["http://test.com/1"]
+        urls = [{"url": "http://test.com/1"}]
 
         result = run_site_scraper("ImotBg", urls, "results")
 
@@ -55,7 +55,7 @@ class TestRunSiteScraper:
     def test_run_site_scraper_no_data(self, mock_scraper, mock_get_parser):
         _, scraper_instance = mock_scraper
         scraper_instance.save_results.return_value = False
-        urls = ["http://test.com/1"]
+        urls = [{"url": "http://test.com/1"}]
 
         result = run_site_scraper("ImotBg", urls, "results")
 
@@ -64,7 +64,7 @@ class TestRunSiteScraper:
     def test_run_site_scraper_sends_email_on_failure(self, mock_scraper, mock_get_parser):
         _, scraper_instance = mock_scraper
         scraper_instance.save_results.return_value = False
-        urls = ["http://test.com/1"]
+        urls = [{"url": "http://test.com/1"}]
         email_client = MagicMock()
 
         run_site_scraper("ImotBg", urls, "results", email_client=email_client)
@@ -75,7 +75,7 @@ class TestRunSiteScraper:
         assert "http://test.com/1" in call_args.kwargs["text"]
 
     def test_run_site_scraper_no_email_on_success(self, mock_scraper, mock_get_parser):
-        urls = ["http://test.com/1"]
+        urls = [{"url": "http://test.com/1"}]
         email_client = MagicMock()
 
         run_site_scraper("ImotBg", urls, "results", email_client=email_client)
@@ -85,7 +85,7 @@ class TestRunSiteScraper:
     def test_run_site_scraper_partial_success(self, mock_scraper, mock_get_parser):
         _, scraper_instance = mock_scraper
         scraper_instance.save_results.side_effect = [True, False]
-        urls = ["http://test.com/1", "http://test.com/2"]
+        urls = [{"url": "http://test.com/1"}, {"url": "http://test.com/2"}]
 
         result = run_site_scraper("ImotBg", urls, "results")
 

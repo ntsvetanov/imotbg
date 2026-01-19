@@ -104,7 +104,10 @@ class TestImotBgParserBuildUrls:
             ]
         }
         urls = ImotBgParser.build_urls(config)
-        assert urls == ["https://imot.bg/search1", "https://imot.bg/search2"]
+        assert urls == [
+            {"url": "https://imot.bg/search1", "name": "Search 1"},
+            {"url": "https://imot.bg/search2", "name": "Search 2"},
+        ]
 
     def test_build_urls_empty(self):
         assert ImotBgParser.build_urls({}) == []

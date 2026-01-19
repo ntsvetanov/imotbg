@@ -1,38 +1,118 @@
 {
-    "ImotBg": {
-        "urls": [
-            {"url": "https://www.imot.bg/obiavi/prodazhbi/grad-sofiya/dianabad/dvustaen?raioni=21~22~23~57~60~63~72~80~81~85~86~120~132~146~147~6101~", "name": "Dvustaini", "folder": "sofia/apartments"},
-            {"url": "https://www.imot.bg/obiavi/prodazhbi/grad-sofiya/dianabad/tristaen?raioni=21~22~23~57~60~63~72~80~81~85~86~120~132~146~147~6101~", "name": "Tristaini", "folder": "sofia/apartments"},
-            {"url": "https://www.imot.bg/obiavi/prodazhbi/grad-sofiya/dianabad/chetiristaen?raioni=21~22~23~57~60~63~72~80~81~85~86~120~132~146~147~6101~", "name": "Chetiristaen", "folder": "sofia/apartments"},
-            {"url": "https://www.imot.bg/obiavi/prodazhbi/grad-sofiya/mezonet/chetiristaen?raioni=21~22~23~57~60~63~72~80~81~85~86~120~132~146~147~6101~", "name": "Chetiristaen", "folder": "sofia/apartments"},
-            {"url": "https://www.imot.bg/obiavi/prodazhbi/grad-plovdiv/tsentar/dvustaen?raioni=5982~5986~5988~5991~6360~", "name": "Plovdiv Dvustaini", "folder": "plovdiv/apartments"},
-            {"url": "https://www.imot.bg/obiavi/prodazhbi/grad-plovdiv/tsentar/tristaen?raioni=5982~5986~5988~5991~6360~", "name": "Plovdiv Tristaini", "folder": "plovdiv/apartments"},
-            {"url": "https://www.imot.bg/obiavi/prodazhbi/grad-plovdiv/tsentar/chetiristaen?raioni=5982~5986~5988~5991~6360~", "name": "Plovdiv Chetiristaen", "folder": "plovdiv/apartments"},
-            {"url": "https://www.imot.bg/obiavi/prodazhbi/zemedelska-zemya?land_category=1~2~3~", "name": "Land", "folder": "land"}
-        ]
-    },
-    "ImotiNet": {
-        "urls": [
-            {"url": "https://www.imoti.net/bg/obiavi/r/prodava/sofia/?page=1&sid=gFM8jD", "name": "Search 1"},
-            {"url": "https://www.imoti.net/bg/obiavi/r/prodava/sofia/?page=1&sid=iKI3oo", "name": "Search 2"}
-        ]
-    },
-    "HomesBg": {
-        "urls": [
-            {"url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=487", "name": "Neighborhood 487"},
-            {"url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=526", "name": "Neighborhood 526"},
-            {"url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=421", "name": "Neighborhood 421"},
-            {"url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=527", "name": "Neighborhood 527"},
-            {"url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=515", "name": "Neighborhood 515"},
-            {"url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=424", "name": "Neighborhood 424"},
-            {"url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=423", "name": "Neighborhood 423"},
-            {"url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=503", "name": "Neighborhood 503"},
-            {"url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=517", "name": "Neighborhood 517"},
-            {"url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=437", "name": "Neighborhood 437"},
-            {"url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=447", "name": "Neighborhood 447"},
-            {"url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=403", "name": "Neighborhood 403"},
-            {"url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=412", "name": "Neighborhood 412"},
-            {"url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=0&typeId=LandAgro", "name": "Land"}
-        ]
-    }
+  "ImotBg": {
+    "urls": [
+      {
+        "url": "https://www.imot.bg/obiavi/prodazhbi/grad-sofiya/dianabad/dvustaen?raioni=21~22~23~57~60~63~72~80~81~85~86~120~132~146~147~6101~",
+        "name": "Dvustaini",
+        "folder": "sofia/apartments"
+      },
+      {
+        "url": "https://www.imot.bg/obiavi/prodazhbi/grad-sofiya/dianabad/tristaen?raioni=21~22~23~57~60~63~72~80~81~85~86~120~132~146~147~6101~",
+        "name": "Tristaini",
+        "folder": "sofia/apartments"
+      },
+      {
+        "url": "https://www.imot.bg/obiavi/prodazhbi/grad-sofiya/dianabad/chetiristaen?raioni=21~22~23~57~60~63~72~80~81~85~86~120~132~146~147~6101~",
+        "name": "Chetiristaen",
+        "folder": "sofia/apartments"
+      },
+      {
+        "url": "https://www.imot.bg/obiavi/prodazhbi/grad-sofiya/mezonet/mezonet?raioni=21~22~23~57~60~63~72~80~81~85~86~120~132~146~147~6101~",
+        "name": "Mezonet",
+        "folder": "sofia/apartments"
+      },
+      {
+        "url": "https://www.imot.bg/obiavi/prodazhbi/grad-plovdiv/tsentar/dvustaen?raioni=5982~5986~5988~5991~6360~",
+        "name": "Plovdiv Dvustaini",
+        "folder": "plovdiv/apartments"
+      },
+      {
+        "url": "https://www.imot.bg/obiavi/prodazhbi/grad-plovdiv/tsentar/tristaen?raioni=5982~5986~5988~5991~6360~",
+        "name": "Plovdiv Tristaini",
+        "folder": "plovdiv/apartments"
+      },
+      {
+        "url": "https://www.imot.bg/obiavi/prodazhbi/grad-plovdiv/tsentar/chetiristaen?raioni=5982~5986~5988~5991~6360~",
+        "name": "Plovdiv Chetiristaen",
+        "folder": "plovdiv/apartments"
+      },
+      {
+        "url": "https://www.imot.bg/obiavi/prodazhbi/zemedelska-zemya?land_category=1~2~3~",
+        "name": "Land",
+        "folder": "land"
+      }
+    ]
+  },
+  "ImotiNet": {
+    "urls": [
+      {
+        "url": "https://www.imoti.net/bg/obiavi/r/prodava/sofia/?page=1&sid=gFM8jD",
+        "name": "Search 1"
+      },
+      {
+        "url": "https://www.imoti.net/bg/obiavi/r/prodava/sofia/?page=1&sid=iKI3oo",
+        "name": "Search 2"
+      }
+    ]
+  },
+  "HomesBg": {
+    "urls": [
+      {
+        "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=487",
+        "name": "Neighborhood 487"
+      },
+      {
+        "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=526",
+        "name": "Neighborhood 526"
+      },
+      {
+        "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=421",
+        "name": "Neighborhood 421"
+      },
+      {
+        "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=527",
+        "name": "Neighborhood 527"
+      },
+      {
+        "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=515",
+        "name": "Neighborhood 515"
+      },
+      {
+        "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=424",
+        "name": "Neighborhood 424"
+      },
+      {
+        "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=423",
+        "name": "Neighborhood 423"
+      },
+      {
+        "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=503",
+        "name": "Neighborhood 503"
+      },
+      {
+        "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=517",
+        "name": "Neighborhood 517"
+      },
+      {
+        "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=437",
+        "name": "Neighborhood 437"
+      },
+      {
+        "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=447",
+        "name": "Neighborhood 447"
+      },
+      {
+        "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=403",
+        "name": "Neighborhood 403"
+      },
+      {
+        "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=412",
+        "name": "Neighborhood 412"
+      },
+      {
+        "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=0&typeId=LandAgro",
+        "name": "Land"
+      }
+    ]
+  }
 }

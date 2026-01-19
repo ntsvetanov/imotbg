@@ -25,6 +25,7 @@ class HttpClient:
             headers=self.headers,
             timeout=self.timeout,
             transport=httpx.HTTPTransport(retries=5),
+            follow_redirects=True,
         ) as client:
             try:
                 response = client.get(url)
@@ -43,6 +44,7 @@ class HttpClient:
             headers=self.headers,
             timeout=self.timeout,
             transport=httpx.HTTPTransport(retries=5),
+            follow_redirects=True,
         ) as client:
             try:
                 response = client.get(url)

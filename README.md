@@ -34,6 +34,7 @@ Scrape a specific URL directly (prints to console):
 ```bash
 python main.py --scraper_name ImotBg --url "https://www.imot.bg/obiavi/prodazhbi/grad-sofiya/..."
 python main.py --scraper_name HomesBg --url "https://www.homes.bg/api/offers?..."
+python main.py --scraper_name ImotiNet --url "https://www.imoti.net/bg/obiavi/r/prodava/sofia/?page=12&sid=gFM8jD"
 ```
 
 Save results to file when using --url:

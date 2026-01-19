@@ -65,7 +65,10 @@ class TestImotiNetParserBuildUrls:
             ]
         }
         urls = ImotiNetParser.build_urls(config)
-        assert urls == ["https://imoti.net/search1", "https://imoti.net/search2"]
+        assert urls == [
+            {"url": "https://imoti.net/search1", "name": "Search 1"},
+            {"url": "https://imoti.net/search2", "name": "Search 2"},
+        ]
 
     def test_build_urls_empty(self):
         assert ImotiNetParser.build_urls({}) == []

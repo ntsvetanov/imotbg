@@ -1,10 +1,6 @@
 import pytest
 
-from src.sites.homesbg import (
-    APARTMENTS_URL_TEMPLATE,
-    LAND_URL,
-    HomesBgParser,
-)
+from src.sites.homesbg import HomesBgParser
 
 
 SAMPLE_API_RESPONSE = {
@@ -45,37 +41,22 @@ class TestHomesBgParserConfig:
 
 
 class TestHomesBgParserBuildUrls:
-    def test_build_urls_with_neighborhoods(self):
+    def test_build_urls_with_urls(self):
         config = {
-            "neighborhoods": [{"id": 487, "name": "Лозенец"}, {"id": 526, "name": "Изгрев"}],
-            "include_land": False,
+            "urls": [
+                {"url": "https://homes.bg/search1", "name": "Search 1"},
+                {"url": "https://homes.bg/search2", "name": "Search 2"},
+            ]
         }
         urls = HomesBgParser.build_urls(config)
 
         assert len(urls) == 2
-        assert f"{APARTMENTS_URL_TEMPLATE}&neighbourhoods%5B%5D=487" in urls
-        assert f"{APARTMENTS_URL_TEMPLATE}&neighbourhoods%5B%5D=526" in urls
-
-    def test_build_urls_with_land(self):
-        config = {
-            "neighborhoods": [{"id": 487, "name": "Лозенец"}],
-            "include_land": True,
-        }
-        urls = HomesBgParser.build_urls(config)
-
-        assert len(urls) == 2
-        assert urls[-1] == LAND_URL
+        assert urls[0] == {"url": "https://homes.bg/search1", "name": "Search 1"}
+        assert urls[1] == {"url": "https://homes.bg/search2", "name": "Search 2"}
 
     def test_build_urls_empty(self):
         urls = HomesBgParser.build_urls({})
         assert urls == []
-
-    def test_build_urls_only_land(self):
-        config = {"neighborhoods": [], "include_land": True}
-        urls = HomesBgParser.build_urls(config)
-
-        assert len(urls) == 1
-        assert urls[0] == LAND_URL
 
 
 class TestHomesBgParserExtractListings:
