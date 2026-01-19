@@ -1,231 +1,119 @@
 import argparse
 import json
-import os
-from typing import List, Type
+from typing import Optional
 
 import pandas as pd
 
-from src.infrastructure.clients.email_client import EmailClient
-from src.infrastructure.scraper_executor import ScraperExecutor
+from src.core.scraper import GenericScraper
 from src.logger_setup import get_logger
-from src.scrapers.homesbg import HomesBgScraper
-from src.scrapers.imotbg import ImotBgScraper
-from src.scrapers.imotinet import ImotiNetScraper
-from src.utils import get_now_date, get_now_for_filename
+from src.sites import SITE_PARSERS, get_parser
+from src.utils import get_now_for_filename
 
-DEFAULT_TIMEOUT = 300
-DEFAULT_ENCODING = "utf-8"
-DEFAULT_OUTPUT_FILE = "data"
 logger = get_logger(__name__)
 
-email_client = EmailClient()
-
-# TODO add named filter by neighborhood and add it to name of the csv
-# TODO main property type
-# TODO make one generic scraper class and use dependency injection to pass the parser
-# TODO add column remove date of the listing
-# TODO Use https://sqlmodel.tiangolo.com/ for mapping to sqllite
-# Configuration Constants
-
-from enum import Enum
+pd.set_option("display.max_columns", None)
+pd.set_option("display.width", None)
+pd.set_option("display.max_colwidth", 50)
 
 
-class ScraperName(Enum):
-    IMOT_BG = "ImotBg"
-    IMOTI_NET = "ImotiNet"
-    HOMES_BG = "HomesBg"
+def scrape_single_url(site_name: str, url: str) -> pd.DataFrame:
+    parser = get_parser(site_name)
+    scraper = GenericScraper(parser, "")
+
+    result = scraper.scrape(url)
+    return result["processed_df"]
 
 
-def initialize_scraper(
-    scraper_class: Type,
-    date_for_name: str,
-    timeout: int,
+def run_site_scraper(
+    site_name: str,
+    url_configs: list[dict],
     result_folder: str,
-):
-    return scraper_class(
-        date_for_name=date_for_name,
-        timeout=timeout,
-        result_folder=result_folder,
-    )
+    email_client: Optional[object] = None,
+) -> pd.DataFrame:
+    parser = get_parser(site_name)
+    scraper = GenericScraper(parser, result_folder)
 
+    all_processed = []
+    failed_urls = []
 
-def run_scraper(
-    scraper_class: Type,
-    urls: List[str],
-    timeout: int,
-    result_folder: str,
-    date_for_name: str,
-    scraper_name: str,
-):
-    scraper = initialize_scraper(scraper_class, date_for_name, timeout, result_folder)
-
-    results = []
-    email_msg = []
-    for url_idx, url in enumerate(urls):
+    for url_index, url_config in enumerate(url_configs):
+        url = url_config["url"]
+        folder = url_config.get("folder")
         try:
-            logger.info(f"Processing {scraper_name} URL: {url}")
-            df = scraper.process(url=url)
-            if not scraper.save_raw_data(url_idx):
-                email_msg.append(
-                    f"No data available for {scraper_name} on {date_for_name}\nurl {url} (index {url_idx})"
-                )
+            logger.info(f"[{site_name}] Processing URL {url_index + 1}/{len(url_configs)}")
+            result = scraper.scrape(url)
+
+            has_data = scraper.save_results(result["raw_df"], result["processed_df"], url_index, folder)
+            if not has_data:
+                failed_urls.append(url)
                 continue
-            scraper.save_processed_data(url_idx)
-            results.append(df)
+
+            all_processed.append(result["processed_df"])
+
         except Exception as e:
-            logger.error(f"Error processing URL {url}: {e}", exc_info=True)
+            logger.error(f"[{site_name}] Error processing URL {url}: {e}", exc_info=True)
+            failed_urls.append(url)
 
-    if email_msg:
+    if failed_urls and email_client:
         email_client.send_email(
-            subject=f"No data available for {scraper_name} {get_now_date()}",
-            text="\n".join(email_msg),
+            subject=f"No data for {site_name} - {get_now_for_filename()}",
+            text=f"Failed URLs:\n" + "\n".join(failed_urls),
         )
-    if not results:
-        logger.warning(f"No data available for {scraper_name}")
+
+    if not all_processed:
+        logger.warning(f"[{site_name}] No data collected")
         return pd.DataFrame()
-    return pd.concat(results).reset_index(drop=True)
+
+    return pd.concat(all_processed).reset_index(drop=True)
 
 
-def get_homes_bg_urls(urls_ids):
-    HOMES_BG_URL_TEMPLATE = (
-        "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell"
-    )
-    urls = [f"{HOMES_BG_URL_TEMPLATE}&neighbourhoods%5B%5D={n}" for n in urls_ids]
-    urls.append("https://www.homes.bg/api/offers??currencyId=1&filterOrderBy=0&locationId=0&typeId=LandAgro")
-    return urls
+def load_url_config() -> dict:
+    with open("url_configs.json") as f:
+        return json.load(f)
 
 
-def concatenate_results(results: List[pd.DataFrame], result_folder: str, date_for_name: str):
-    output_path = os.path.join(result_folder, f"{date_for_name}_all_results.csv")
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    combined_df = pd.concat(results).reset_index(drop=True)
-    combined_df.to_csv(output_path, index=False)
-    return combined_df
+def main():
+    arg_parser = argparse.ArgumentParser(description="Scrape real estate listings")
+    arg_parser.add_argument("--scraper_name", default="all", help="Site name or 'all'")
+    arg_parser.add_argument("--result_folder", default="results", help="Output folder")
+    arg_parser.add_argument("--url", help="Single URL to scrape (bypasses config, prints to console)")
+    arg_parser.add_argument("--save", action="store_true", help="Save results to file when using --url")
+    args = arg_parser.parse_args()
 
+    if args.url:
+        if args.scraper_name == "all":
+            arg_parser.error("--scraper_name is required when using --url")
 
-def run_all_scrapers(
-    url_config,
-    result_folder: str,
-):
-    date_for_name = get_now_for_filename()
-    timeout = DEFAULT_TIMEOUT
-    executor = ScraperExecutor(timeout)
+        if args.save:
+            result_df = run_site_scraper(args.scraper_name, [{"url": args.url}], args.result_folder)
+            logger.info(f"[{args.scraper_name}] Completed with {len(result_df)} total listings")
+        else:
+            df = scrape_single_url(args.scraper_name, args.url)
+            if df.empty:
+                print("No listings found.")
+            else:
+                display_cols = ["price", "currency", "city", "neighborhood", "property_type", "details_url"]
+                available_cols = [c for c in display_cols if c in df.columns]
+                print(f"\nFound {len(df)} listings:\n")
+                print(df[available_cols].to_string(index=False))
+        return
 
-    executor.add_task(
-        run_scraper,
-        ImotBgScraper,
-        url_config.get(ScraperName.IMOT_BG.value),
-        timeout,
-        result_folder,
-        date_for_name,
-        ScraperName.IMOT_BG.value,
-    )
-    executor.add_task(
-        run_scraper,
-        ImotiNetScraper,
-        url_config.get(ScraperName.IMOTI_NET.value),
-        timeout,
-        result_folder,
-        date_for_name,
-        ScraperName.IMOTI_NET.value,
-    )
-    executor.add_task(
-        run_scraper,
-        HomesBgScraper,
-        get_homes_bg_urls(url_config.get(ScraperName.HOMES_BG.value)),
-        timeout,
-        result_folder,
-        date_for_name,
-        ScraperName.HOMES_BG.value,
-    )
+    url_config = load_url_config()
+    is_run_all = args.scraper_name == "all"
+    sites_to_run = list(SITE_PARSERS.keys()) if is_run_all else [args.scraper_name]
 
-    results = executor.run()
-    logger.info(f"Executor completed with results: {results}")
-    for result in results:
-        logger.info(f"Result type: {type(result)} | Result preview: {result.shape}")
+    for site_name in sites_to_run:
+        parser = get_parser(site_name)
+        site_config = url_config.get(site_name, {})
+        url_configs = parser.build_urls(site_config)
 
-    try:
-        result_df = concatenate_results(results, result_folder, date_for_name)
-        logger.info(f"Scraping completed. Combined results {result_df.shape} saved to {result_folder} ")
-    except ValueError:
-        logger.warning("No data to concatenate. No results saved.")
-    except Exception as e:
-        logger.error(f"Error saving results: {e}", exc_info=True)
+        if not url_configs:
+            logger.warning(f"No URLs configured for {site_name}")
+            continue
 
-
-def run_scraper_by_site_name(
-    urls: list,
-    scraper_name: str,
-    result_folder: str,
-):
-    date_for_name = get_now_for_filename()
-    timeout = DEFAULT_TIMEOUT
-
-    scraper_map = {
-        "ImotBg": ImotBgScraper,
-        "ImotiNet": ImotiNetScraper,
-        "HomesBg": HomesBgScraper,
-    }
-
-    scraper_class = scraper_map[scraper_name]
-
-    result = run_scraper(
-        scraper_class,
-        urls,
-        timeout,
-        result_folder,
-        date_for_name,
-        scraper_name,
-    )
-
-    if not result.empty:
-        logger.info(f"{scraper_name} results saved successfully.")
-    else:
-        logger.warning(f"{scraper_name} returned no results.")
+        result_df = run_site_scraper(site_name, url_configs, args.result_folder)
+        logger.info(f"[{site_name}] Completed with {len(result_df)} total listings")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Scrape real estate data and save it to a CSV file.")
-
-    parser.add_argument(
-        "--result_folder",
-        type=str,
-        default=DEFAULT_OUTPUT_FILE,
-        help="Output folder for CSV files (default: %(default)s)",
-    )
-
-    parser.add_argument(
-        "--scraper_name",
-        type=str,
-        default="all",
-        help="Name of the scraper to run (default: %(default)s)",
-    )
-
-    with open("url_configs.json", "r") as file:
-        url_config = json.load(file)
-
-    scraper_name = parser.parse_args().scraper_name
-    if scraper_name != "all":
-        logger.info(f"Running scraper for {scraper_name}")
-        site_url_config = url_config.get(scraper_name, None)
-
-        if not site_url_config:
-            logger.error(f"Scraper {scraper_name} not found in url_configs.json")
-            exit(1)
-
-        if scraper_name == "HomesBg":
-            site_url_config = get_homes_bg_urls(site_url_config)
-
-        run_scraper_by_site_name(
-            urls=site_url_config,
-            scraper_name=scraper_name,
-            result_folder=parser.parse_args().result_folder,
-        )
-        exit(0)
-
-    args = parser.parse_args()
-
-    run_all_scrapers(
-        url_config=url_config,
-        result_folder=args.result_folder,
-    )
+    main()
