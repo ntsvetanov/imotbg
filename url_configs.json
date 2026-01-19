@@ -5,6 +5,31 @@
         "url": "https://www.imoti.com/prodazhbi/grad-sofiya/dvustaini?sraion=86~80~72~147~21~81~32~132~146~15~22~23~85~60~6101~57~120~4~14~",
         "name": "Sofia Dvustaini",
         "folder": "sofia/apartments"
+      },
+      {
+        "url": "https://www.imoti.com/prodazhbi/grad-sofiya/tristaini?sraion=86~80~72~147~21~81~32~132~146~15~22~23~85~60~6101~57~120~4~14~",
+        "name": "Sofia Tristaini",
+        "folder": "sofia/apartments"
+      },
+      {
+        "url": "https://www.imoti.com/prodazhbi/grad-sofiya?pubtype=4~5~&sraion=86~4~14~15~6101~146~147~21~22~23~32~120~57~132~60~72~80~81~85~",
+        "name": "Sofia Chetiristaen",
+        "folder": "sofia/apartments"
+      },
+      {
+        "url": "https://www.imoti.com/prodazhbi/grad-sofiya/mezoneti?sraion=86~4~14~15~6101~146~147~21~22~23~32~120~57~132~60~72~80~81~85~",
+        "name": "Mezonet",
+        "folder": "sofia/apartments"
+      },
+      {
+        "url": "https://www.imoti.com/naemi/grad-sofiya?pubtype=3~4~&sraion=6101~57~60~21~147~81~22~23~85~120~80~",
+        "name": "Sofia Rentals",
+        "folder": "sofia/rentals"
+      },
+      {
+        "url": "https://www.imoti.com/prodazhbi/zemedelski-zemi?ztype=1",
+        "name": "Land",
+        "folder": "land"
       }
     ]
   },
