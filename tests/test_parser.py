@@ -113,7 +113,7 @@ class TestBaseParser:
         assert parser.get_json_value(data, "level1.missing", "default") == "default"
 
     def test_get_total_pages_default(self, parser, sample_html):
-        assert parser.get_total_pages(sample_html) == 999
+        assert parser.get_total_pages(sample_html) == 100
 
     def test_build_urls(self):
         config = {"urls": ["http://a.com", "http://b.com"]}

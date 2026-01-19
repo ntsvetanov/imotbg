@@ -1,4 +1,28 @@
 {
+  "BazarBg": {
+    "urls": [
+      {
+        "url": "https://bazar.bg/obiavi/prodazhba-apartamenti/sofia?asize[]=2&asize[]=3&asize[]=4&asize[]=5&asize[]=6&currency=2&district_id[]=346&district_id[]=366&district_id[]=880&district_id[]=377&district_id[]=378&district_id[]=379&district_id[]=389&district_id[]=393&district_id[]=408&district_id[]=426&district_id[]=432&district_id[]=435&district_id[]=445&district_id[]=456&district_id[]=457&district_id[]=463&district_id[]=835&district_id[]=836&sort=default",
+        "name": "Sofia Apartments",
+        "folder": "sofia/apartments"
+      },
+      {
+        "url": "https://bazar.bg/obiavi/prodazhba-apartamenti/plovdiv?asize[]=2&asize[]=3&asize[]=4&asize[]=5&asize[]=6&currency=2&district_id[]=710&district_id[]=714&district_id[]=979&district_id[]=718&district_id[]=720&district_id[]=984&district_id[]=723&district_id[]=270",
+        "name": "Plovdiv Apartments",
+        "folder": "plovdiv/apartments"
+      },
+      {
+        "url": "https://bazar.bg/obiavi/naemi-apartamenti/sofia?asize[]=2&asize[]=3&asize[]=4&asize[]=5&asize[]=6&currency=2&district_id[]=346&district_id[]=366&district_id[]=880&district_id[]=377&district_id[]=378&district_id[]=379&district_id[]=389&district_id[]=393&district_id[]=408&district_id[]=426&district_id[]=432&district_id[]=435&district_id[]=445&district_id[]=456&district_id[]=457&district_id[]=463&district_id[]=835&district_id[]=836",
+        "name": "Sofia Rentals",
+        "folder": "sofia/rentals"
+      }
+      {
+        "url": "https://bazar.bg/obiavi/naemi-apartamenti/plovdiv?asize[]=2&asize[]=3&asize[]=4&asize[]=5&asize[]=6&currency=2&district_id[]=710&district_id[]=714&district_id[]=979&district_id[]=718&district_id[]=720&district_id[]=984&district_id[]=723&district_id[]=270&sort=default",
+        "name": "Plovdiv Rentals",
+        "folder": "plovdiv/rentals"
+      }
+    ]
+  },
   "ImotBg": {
     "urls": [
       {

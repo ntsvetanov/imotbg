@@ -11,6 +11,7 @@ from src.core.models import ListingData
 class Field:
     source: str
     transform: Callable | None = None
+    prepend_url: bool = False
 
 
 @dataclass
@@ -20,11 +21,17 @@ class SiteConfig:
     encoding: str = "utf-8"
     source_type: str = "html"
     rate_limit_seconds: float = 1.0
+    max_pages: int = 100
+    page_size: int = 100
 
 
 class BaseParser(ABC):
     config: SiteConfig
     Fields: type
+
+    @staticmethod
+    def build_urls(config: dict) -> list[dict]:
+        return config.get("urls", [])
 
     def get_text(self, selector: str, element: BeautifulSoup, default: str = "") -> str:
         found = element.select_one(selector)
@@ -45,11 +52,6 @@ class BaseParser(ABC):
             data = data.get(key, {})
         return data if data != {} else default
 
-    @staticmethod
-    @abstractmethod
-    def build_urls(config: dict) -> list[str]:
-        pass
-
     @abstractmethod
     def extract_listings(self, content: Any) -> Iterator[dict]:
         pass
@@ -59,7 +61,16 @@ class BaseParser(ABC):
         pass
 
     def get_total_pages(self, content: Any) -> int:
-        return 999
+        return self.config.max_pages
+
+    def _prepend_base_url(self, path: str) -> str:
+        if not path:
+            return ""
+        if path.startswith("http"):
+            return path
+        if path.startswith("//"):
+            return f"https:{path}"
+        return f"{self.config.base_url}{path}"
 
     def transform_listing(self, raw_listing: dict) -> ListingData:
         result = {"site": self.config.name}
@@ -80,5 +91,8 @@ class BaseParser(ABC):
                     result[attr_name] = field_obj.transform(raw_value)
                 except Exception:
                     result[attr_name] = None
+
+            if field_obj.prepend_url and result.get(attr_name):
+                result[attr_name] = self._prepend_base_url(result[attr_name])
 
         return ListingData(**result)

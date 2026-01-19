@@ -1,11 +1,13 @@
+from src.sites.bazarbg import BazarBgParser
+from src.sites.homesbg import HomesBgParser
 from src.sites.imotbg import ImotBgParser
 from src.sites.imotinet import ImotiNetParser
-from src.sites.homesbg import HomesBgParser
 
 SITE_PARSERS = {
+    "BazarBg": BazarBgParser,
+    "HomesBg": HomesBgParser,
     "ImotBg": ImotBgParser,
     "ImotiNet": ImotiNetParser,
-    "HomesBg": HomesBgParser,
 }
 
 

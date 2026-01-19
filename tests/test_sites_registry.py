@@ -1,12 +1,17 @@
 import pytest
 
 from src.sites import SITE_PARSERS, get_parser
+from src.sites.bazarbg import BazarBgParser
 from src.sites.homesbg import HomesBgParser
 from src.sites.imotbg import ImotBgParser
 from src.sites.imotinet import ImotiNetParser
 
 
 class TestSiteParsersRegistry:
+    def test_registry_contains_bazarbg(self):
+        assert "BazarBg" in SITE_PARSERS
+        assert SITE_PARSERS["BazarBg"] == BazarBgParser
+
     def test_registry_contains_imotbg(self):
         assert "ImotBg" in SITE_PARSERS
         assert SITE_PARSERS["ImotBg"] == ImotBgParser
@@ -19,11 +24,15 @@ class TestSiteParsersRegistry:
         assert "HomesBg" in SITE_PARSERS
         assert SITE_PARSERS["HomesBg"] == HomesBgParser
 
-    def test_registry_has_three_parsers(self):
-        assert len(SITE_PARSERS) == 3
+    def test_registry_has_four_parsers(self):
+        assert len(SITE_PARSERS) == 4
 
 
 class TestGetParser:
+    def test_get_parser_bazarbg(self):
+        parser = get_parser("BazarBg")
+        assert isinstance(parser, BazarBgParser)
+
     def test_get_parser_imotbg(self):
         parser = get_parser("ImotBg")
         assert isinstance(parser, ImotBgParser)

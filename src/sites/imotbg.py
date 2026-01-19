@@ -2,18 +2,14 @@ import re
 
 from src.core.parser import BaseParser, Field, SiteConfig
 from src.core.transforms import (
-    create_url_prepender,
     extract_city,
     extract_currency,
     extract_neighborhood,
     extract_offer_type,
     extract_property_type,
-    has_dds_flag,
+    is_without_dds,
     parse_price,
-    to_int_safe,
 )
-
-prepend_https = create_url_prepender("https:")
 
 
 def extract_photo_count(text: str) -> int | None:
@@ -31,25 +27,21 @@ class ImotBgParser(BaseParser):
         rate_limit_seconds=1.0,
     )
 
-    @staticmethod
-    def build_urls(config: dict) -> list[dict]:
-        return config.get("urls", [])
-
     class Fields:
         price = Field("price_text", parse_price)
         currency = Field("price_text", extract_currency)
-        without_dds = Field("price_text", has_dds_flag)
+        without_dds = Field("price_text", is_without_dds)
         city = Field("location", extract_city)
         neighborhood = Field("location", extract_neighborhood)
-        raw_title = Field("title", None)
+        raw_title = Field("title")
         property_type = Field("title", extract_property_type)
         offer_type = Field("title", extract_offer_type)
-        raw_description = Field("description", None)
-        details_url = Field("details_url", prepend_https)
+        raw_description = Field("description")
+        details_url = Field("details_url", prepend_url=True)
         num_photos = Field("photos_text", extract_photo_count)
-        contact_info = Field("contact_info", None)
-        agency_name = Field("agency_name", None)
-        agency_url = Field("agency_url", prepend_https)
+        contact_info = Field("contact_info")
+        agency_name = Field("agency_name")
+        agency_url = Field("agency_url", prepend_url=True)
 
     def _extract_contact_from_description(self, description_text: str) -> str:
         if "тел.:" in description_text:

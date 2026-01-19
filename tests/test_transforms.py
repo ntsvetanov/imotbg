@@ -1,13 +1,12 @@
 import pytest
 
 from src.core.transforms import (
-    create_url_prepender,
     extract_city,
     extract_currency,
     extract_neighborhood,
     extract_offer_type,
     extract_property_type,
-    has_dds_flag,
+    is_without_dds,
     parse_price,
     to_float_or_zero,
     to_float_safe,
@@ -64,21 +63,21 @@ class TestExtractCurrency:
         assert extract_currency("100 USD") == ""
 
 
-class TestHasDdsFlag:
-    def test_has_dds_true(self):
-        assert has_dds_flag("100 000 лв. без ДДС") is True
+class TestIsWithoutDds:
+    def test_is_without_dds_true(self):
+        assert is_without_dds("100 000 лв. без ДДС") is True
 
-    def test_has_dds_true_lowercase(self):
-        assert has_dds_flag("100 000 лв. без ддс") is True
+    def test_is_without_dds_true_lowercase(self):
+        assert is_without_dds("100 000 лв. без ддс") is True
 
-    def test_has_dds_false(self):
-        assert has_dds_flag("100 000 лв.") is False
+    def test_is_without_dds_false(self):
+        assert is_without_dds("100 000 лв.") is False
 
-    def test_has_dds_empty(self):
-        assert has_dds_flag("") is False
+    def test_is_without_dds_empty(self):
+        assert is_without_dds("") is False
 
-    def test_has_dds_none(self):
-        assert has_dds_flag(None) is False
+    def test_is_without_dds_none(self):
+        assert is_without_dds(None) is False
 
 
 class TestExtractCity:
@@ -193,28 +192,6 @@ class TestToFloatSafe:
 
     def test_to_float_safe_none(self):
         assert to_float_safe(None) == 0.0
-
-
-class TestCreateUrlPrepender:
-    def test_prepend_https(self):
-        prepend = create_url_prepender("https:")
-        assert prepend("//example.com/path") == "https://example.com/path"
-
-    def test_prepend_base_url(self):
-        prepend = create_url_prepender("https://www.example.com")
-        assert prepend("/path/to/page") == "https://www.example.com/path/to/page"
-
-    def test_prepend_already_http(self):
-        prepend = create_url_prepender("https:")
-        assert prepend("https://example.com/path") == "https://example.com/path"
-
-    def test_prepend_empty_path(self):
-        prepend = create_url_prepender("https:")
-        assert prepend("") == ""
-
-    def test_prepend_none_path(self):
-        prepend = create_url_prepender("https:")
-        assert prepend(None) == ""
 
 
 class TestToFloatOrZero:

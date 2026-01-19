@@ -1,5 +1,4 @@
 import re
-from typing import Callable
 
 PROPERTY_TYPE_MAPPING = {
     "1-стаен": "едностаен",
@@ -36,7 +35,7 @@ def extract_currency(text: str) -> str:
     return ""
 
 
-def has_dds_flag(text: str) -> bool:
+def is_without_dds(text: str) -> bool:
     return "ддс" in text.lower() if text else False
 
 
@@ -102,14 +101,3 @@ def to_float_or_zero(value) -> float:
         return float(cleaned)
     except ValueError:
         return 0.0
-
-
-def create_url_prepender(base_url: str) -> Callable[[str], str]:
-    def prepend(path: str) -> str:
-        if not path:
-            return ""
-        if path.startswith("http"):
-            return path
-        return f"{base_url}{path}"
-
-    return prepend

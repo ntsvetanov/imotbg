@@ -150,7 +150,7 @@ class TestHomesBgParserTransform:
         assert result.city == "София"
         assert result.neighborhood == "Лозенец"
         assert result.property_type == "двустаен"
-        assert result.details_url == "https://homes.bg/offer/12345"
+        assert result.details_url == "https://www.homes.bg/offer/12345"
 
 
 class TestHomesBgParserPagination:

@@ -1,17 +1,14 @@
 from src.core.parser import BaseParser, Field, SiteConfig
 from src.core.transforms import (
-    create_url_prepender,
     extract_city,
     extract_currency,
     extract_neighborhood,
     extract_offer_type,
     extract_property_type,
-    has_dds_flag,
+    is_without_dds,
     parse_price,
     to_int_safe,
 )
-
-prepend_base_url = create_url_prepender("https://www.imoti.net")
 
 
 class ImotiNetParser(BaseParser):
@@ -22,26 +19,22 @@ class ImotiNetParser(BaseParser):
         rate_limit_seconds=1.0,
     )
 
-    @staticmethod
-    def build_urls(config: dict) -> list[dict]:
-        return config.get("urls", [])
-
     class Fields:
         price = Field("price_text", parse_price)
         currency = Field("price_text", extract_currency)
-        without_dds = Field("price_text", has_dds_flag)
+        without_dds = Field("price_text", is_without_dds)
         city = Field("location", extract_city)
         neighborhood = Field("location", extract_neighborhood)
-        raw_title = Field("title", None)
+        raw_title = Field("title")
         property_type = Field("title", extract_property_type)
         offer_type = Field("title", extract_offer_type)
-        raw_description = Field("description", None)
-        details_url = Field("details_url", prepend_base_url)
+        raw_description = Field("description")
+        details_url = Field("details_url", prepend_url=True)
         num_photos = Field("num_photos", to_int_safe)
-        agency = Field("agency", None)
-        floor = Field("floor", None)
-        price_per_m2 = Field("price_per_m2", None)
-        area = Field("area", None)
+        agency = Field("agency")
+        floor = Field("floor")
+        price_per_m2 = Field("price_per_m2")
+        area = Field("area")
 
     def _extract_params(self, listing) -> tuple[str, str]:
         params = listing.select("ul.parameters li")
