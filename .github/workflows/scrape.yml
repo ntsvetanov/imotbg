@@ -22,7 +22,7 @@ jobs:
       - name: Check out this repo
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -59,10 +59,12 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Check out this repo
+      - name: Check out this repo (sparse - only results folder)
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 1
+          sparse-checkout: |
+            results
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -79,12 +81,12 @@ jobs:
             rm -rf artifacts
           fi
 
-      - name: Commit and push if changed
+      - name: Commit and push only changed results
         run: |
           git config user.name "Automated"
           git config user.email "actions@users.noreply.github.com"
-          git pull
-          git add -A
+          git pull --rebase
+          git add results/
           if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0

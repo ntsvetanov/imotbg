@@ -15,7 +15,7 @@ class GenericScraper:
     def __init__(self, parser: BaseParser, result_folder: str = "results"):
         self.parser = parser
         self.config = parser.config
-        self.http_client = HttpClient(timeout=30)
+        self.http_client = HttpClient(timeout=60, max_retries=3, retry_delay=3.0)
         self.result_folder = result_folder
         self.timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
 

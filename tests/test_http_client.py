@@ -9,13 +9,18 @@ class TestHttpClientInit:
     def test_init_default_values(self):
         client = HttpClient()
         assert client.headers is None
-        assert client.timeout == 10
+        assert client.timeout.read == 30
+        assert client.timeout.connect == 15.0
+        assert client.max_retries == 3
+        assert client.retry_delay == 2.0
 
     def test_init_custom_values(self):
         headers = {"User-Agent": "TestBot"}
-        client = HttpClient(headers=headers, timeout=30)
+        client = HttpClient(headers=headers, timeout=60, max_retries=5, retry_delay=5.0)
         assert client.headers == headers
-        assert client.timeout == 30
+        assert client.timeout.read == 60
+        assert client.max_retries == 5
+        assert client.retry_delay == 5.0
 
 
 class TestHttpClientFetch:

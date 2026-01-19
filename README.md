@@ -32,8 +32,8 @@ python main.py --scraper_name HomesBg
 
 Scrape a specific URL directly (prints to console):
 ```bash
-python main.py --scraper_name ImotBg --url "https://www.imot.bg/obiavi/prodazhbi/grad-sofiya/..."
-python main.py --scraper_name HomesBg --url "https://www.homes.bg/api/offers?..."
+python main.py --scraper_name ImotBg --url "https://www.imot.bg/obiavi/prodazhbi/grad-sofiya/mezonet?raioni=21~22~23~57~60~63~72~80~81~85~86~120~132~146~147~6101~"
+python main.py --scraper_name HomesBg --url https://www.homes.bg/api/offers\?currencyId\=1\&filterOrderBy\=0\&locationId\=1\&typeId\=ApartmentSell\&neighbourhoods%5B%5D\=487
 python main.py --scraper_name ImotiNet --url "https://www.imoti.net/bg/obiavi/r/prodava/sofia/?page=12&sid=gFM8jD"
 ```
 
