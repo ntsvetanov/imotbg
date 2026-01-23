@@ -82,6 +82,20 @@ def extract_offer_type_from_url(url: str) -> str:
     return ""
 
 
+def calculate_price_per_m2(raw: dict) -> str:
+    """Calculate price per m2 from price_text and details_text"""
+    try:
+        price = parse_price(raw.get("price_text", ""))
+        area_str = extract_area(raw.get("details_text", ""))
+        if price and area_str:
+            area = float(area_str)
+            if area > 0:
+                return str(round(price / area, 2))
+    except (ValueError, TypeError, ZeroDivisionError):
+        pass
+    return ""
+
+
 class SuprimmoParser(BaseParser):
     config = SiteConfig(
         name="suprimmo",
@@ -106,8 +120,24 @@ class SuprimmoParser(BaseParser):
         ref_no = Field("ref_no")
         agency = Field("agency_name")
         num_photos = Field("num_photos")
+        total_offers = Field("total_offers")
+        price_per_m2 = Field("price_per_m2")
+
+    def _extract_total_offers(self, soup) -> int:
+        """Extract total offers count from page like '1448 намерени оферти'"""
+        # Look for the count in the page header
+        count_elem = soup.select_one("p.font-medium.font-semibold")
+        if count_elem:
+            text = count_elem.get_text(strip=True)
+            match = re.search(r"(\d+)\s*намерени", text)
+            if match:
+                return int(match.group(1))
+        return 0
 
     def extract_listings(self, soup):
+        # Extract total offers from the page (only once per page)
+        total_offers = self._extract_total_offers(soup)
+
         # Try to determine default offer type from page URL/context
         # Check if page is a sales or rent page by looking at dataLayer or page content
         default_offer_type = ""
@@ -184,7 +214,8 @@ class SuprimmoParser(BaseParser):
             photos = card.select("div.slider-embed div.item")
             num_photos = len(photos)
 
-            yield {
+            # Build raw listing dict
+            raw = {
                 "price_text": price_text,
                 "title": title,
                 "location": location,
@@ -195,15 +226,27 @@ class SuprimmoParser(BaseParser):
                 "offer_type": offer_type,
                 "agency_name": "Suprimmo",
                 "num_photos": num_photos,
+                "total_offers": total_offers,
             }
 
+            # Calculate price per m2
+            raw["price_per_m2"] = calculate_price_per_m2(raw)
+
+            yield raw
+
     def get_total_pages(self, soup) -> int:
-        """Extract total pages - Suprimmo doesn't show pagination numbers directly"""
-        # Check for rel="next" link in head
+        """Extract total pages from '1448 намерени оферти / Страницa 1 от 61'"""
+        count_elem = soup.select_one("p.font-medium.font-semibold")
+        if count_elem:
+            text = count_elem.get_text(strip=True)
+            # Look for "Страницa X от Y" pattern
+            match = re.search(r"от\s*(\d+)", text)
+            if match:
+                return int(match.group(1))
+
+        # Fallback: Check for rel="next" link in head
         next_link = soup.select_one("link[rel='next']")
         if next_link:
-            # There's at least one more page, but we don't know the total
-            # Return a reasonable max and rely on empty page detection
             return self.config.max_pages
         return 1
 

@@ -9,6 +9,7 @@ from src.sites.suprimmo import (
     extract_floor,
     extract_ref_from_contact_url,
     extract_offer_type_from_url,
+    calculate_price_per_m2,
 )
 
 
@@ -37,6 +38,7 @@ SAMPLE_PAGE_HTML = f"""
     <link rel="next" href="https://www.suprimmo.bg/sofia/apartments/page/2/"/>
 </head>
 <body>
+<p class="font-medium font-semibold">1448 намерени оферти / Страницa 1 от 61</p>
 <script>
     dataLayer = [{{listing_pagetype: "type:'продава'"}}];
 </script>
@@ -161,6 +163,37 @@ class TestExtractOfferTypeFromUrl:
         assert extract_offer_type_from_url("") == ""
 
 
+class TestCalculatePricePerM2:
+    def test_standard_calculation(self):
+        raw = {"price_text": "185 000 €", "details_text": "Площ: 100 м²"}
+        assert calculate_price_per_m2(raw) == "1850.0"
+
+    def test_with_decimal_area(self):
+        raw = {"price_text": "185 000 €", "details_text": "Площ: 95.5 м²"}
+        # 185000 / 95.5 = 1937.17...
+        result = float(calculate_price_per_m2(raw))
+        assert 1937 < result < 1938
+
+    def test_missing_price(self):
+        raw = {"price_text": "", "details_text": "Площ: 100 м²"}
+        assert calculate_price_per_m2(raw) == ""
+
+    def test_missing_area(self):
+        raw = {"price_text": "185 000 €", "details_text": ""}
+        assert calculate_price_per_m2(raw) == ""
+
+    def test_zero_area(self):
+        raw = {"price_text": "185 000 €", "details_text": "Площ: 0 м²"}
+        assert calculate_price_per_m2(raw) == ""
+
+    def test_empty_raw(self):
+        assert calculate_price_per_m2({}) == ""
+
+    def test_invalid_price(self):
+        raw = {"price_text": "по договаряне", "details_text": "Площ: 100 м²"}
+        assert calculate_price_per_m2(raw) == ""
+
+
 class TestSuprimmoParserConfig:
     def test_config_values(self):
         parser = SuprimmoParser()
@@ -244,6 +277,17 @@ class TestSuprimmoParserExtractListings:
         listings = list(parser.extract_listings(soup))
         assert listings[0]["agency_name"] == "Suprimmo"
 
+    def test_extract_listing_total_offers(self, parser, soup):
+        listings = list(parser.extract_listings(soup))
+        assert listings[0]["total_offers"] == 1448
+        assert listings[1]["total_offers"] == 1448  # Same for all listings on page
+
+    def test_extract_listing_price_per_m2(self, parser, soup):
+        listings = list(parser.extract_listings(soup))
+        # First listing: 185000 / 95.5 = 1937.17...
+        price_per_m2 = float(listings[0]["price_per_m2"])
+        assert 1937 < price_per_m2 < 1938
+
 
 class TestSuprimmoParserTransform:
     @pytest.fixture
@@ -314,16 +358,56 @@ class TestSuprimmoParserTransform:
         assert result.offer_type == "наем"
         assert result.floor == "партер"
 
+    def test_transform_listing_with_new_fields(self, parser):
+        raw = {
+            "price_text": "185 000 €",
+            "title": "Тристаен апартамент",
+            "location": "гр. София / кв. Лозенец",
+            "details_text": "Площ: 95.5 м² Етаж: 3",
+            "description": "",
+            "details_url": "/prodajba-imot-sofia-123456.html",
+            "ref_no": "SOF 109946",
+            "offer_type": "продава",
+            "agency_name": "Suprimmo",
+            "num_photos": 5,
+            "total_offers": 1448,
+            "price_per_m2": "1937.17",
+        }
+        result = parser.transform_listing(raw)
+
+        assert result.total_offers == 1448
+        assert result.price_per_m2 == "1937.17"
+
 
 class TestSuprimmoParserPagination:
     @pytest.fixture
     def parser(self):
         return SuprimmoParser()
 
-    def test_get_total_pages_with_next_link(self, parser):
-        soup = BeautifulSoup(SAMPLE_PAGE_HTML, "html.parser")
+    def test_get_total_pages_with_page_count(self, parser):
+        html = """
+        <html>
+        <body>
+        <p class="font-medium font-semibold">1448 намерени оферти / Страницa 1 от 61</p>
+        </body>
+        </html>
+        """
+        soup = BeautifulSoup(html, "html.parser")
         total = parser.get_total_pages(soup)
-        assert total == parser.config.max_pages  # Returns max when next link exists
+        assert total == 61
+
+    def test_get_total_pages_with_next_link_fallback(self, parser):
+        html = """
+        <html>
+        <head>
+            <link rel="next" href="https://www.suprimmo.bg/page/2/"/>
+        </head>
+        <body></body>
+        </html>
+        """
+        soup = BeautifulSoup(html, "html.parser")
+        total = parser.get_total_pages(soup)
+        assert total == parser.config.max_pages  # Returns max when next link exists but no page count
 
     def test_get_total_pages_no_next_link(self, parser):
         soup = BeautifulSoup("<html><body></body></html>", "html.parser")
@@ -371,6 +455,35 @@ class TestSuprimmoParserEdgeCases:
     @pytest.fixture
     def parser(self):
         return SuprimmoParser()
+
+    def test_extract_total_offers(self, parser):
+        html = """
+        <html>
+        <body>
+        <p class="font-medium font-semibold">1448 намерени оферти / Страницa 1 от 61</p>
+        </body>
+        </html>
+        """
+        soup = BeautifulSoup(html, "html.parser")
+        total = parser._extract_total_offers(soup)
+        assert total == 1448
+
+    def test_extract_total_offers_no_count(self, parser):
+        soup = BeautifulSoup("<html><body></body></html>", "html.parser")
+        total = parser._extract_total_offers(soup)
+        assert total == 0
+
+    def test_extract_total_offers_different_format(self, parser):
+        html = """
+        <html>
+        <body>
+        <p class="font-medium font-semibold">25 намерени оферти</p>
+        </body>
+        </html>
+        """
+        soup = BeautifulSoup(html, "html.parser")
+        total = parser._extract_total_offers(soup)
+        assert total == 25
 
     def test_extract_listings_no_items(self, parser):
         soup = BeautifulSoup("<html><body></body></html>", "html.parser")

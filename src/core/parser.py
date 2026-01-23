@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Callable, Iterator
 
 from bs4 import BeautifulSoup
@@ -94,5 +95,12 @@ class BaseParser(ABC):
 
             if field_obj.prepend_url and result.get(attr_name):
                 result[attr_name] = self._prepend_base_url(result[attr_name])
+
+        # Map scraped_at to date_time_added if present
+        if "scraped_at" in raw_listing and raw_listing["scraped_at"]:
+            try:
+                result["date_time_added"] = datetime.fromisoformat(raw_listing["scraped_at"])
+            except (ValueError, TypeError):
+                pass
 
         return ListingData(**result)
