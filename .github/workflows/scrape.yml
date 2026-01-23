@@ -32,6 +32,8 @@ jobs:
             folder: imoticom
           - name: ImotiNet
             folder: imotinet
+          - name: ImotiNetPlovdiv
+            folder: imotinet
           - name: Luximmo
             folder: luximmo
           - name: Suprimmo

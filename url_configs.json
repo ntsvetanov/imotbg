@@ -184,9 +184,13 @@
         "url": "https://www.imoti.net/bg/obiavi/r/dava-pod-naem/sofia/?sid=fCk5Ey",
         "name": "Sofia Rentals",
         "folder": "sofia/rentals"
-      },
+      }
+    ]
+  },
+  "ImotiNetPlovdiv": {
+    "urls": [
       {
-        "url": "https://www.imoti.net/bg/obiavi/r/prodava/plovdiv/?sid=gfSTFO",
+        "url": "https://www.imoti.net/bg/obiavi/r/prodava/plovdiv/?sid=gRy1fA",
         "name": "Plovdiv Apartments",
         "folder": "plovdiv/apartments"
       },

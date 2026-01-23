@@ -213,10 +213,14 @@ class SuprimmoParser(BaseParser):
         if not has_items:
             return None
 
-        # Check for next page link in HTML head
+        # Check for next page link in HTML head - this is the key indicator
+        # If there's no rel="next" link, we're on the last page
         next_link = soup.select_one("link[rel='next']")
-        if page_number == 2 and next_link:
-            # For page 2, use the rel="next" link from page 1
+        if not next_link:
+            return None
+
+        # For page 2, use the rel="next" link from page 1
+        if page_number == 2:
             return next_link.get("href")
 
         # Suprimmo uses: /page/2/, /page/3/, etc.

@@ -334,6 +334,7 @@ class TestSuprimmoParserPagination:
         soup = BeautifulSoup(SAMPLE_PAGE_HTML, "html.parser")
         url = "https://www.suprimmo.bg/sofia/apartments/"
         next_url = parser.get_next_page_url(soup, url, 2)
+        # Uses the rel="next" link from the HTML
         assert next_url == "https://www.suprimmo.bg/sofia/apartments/page/2/"
 
     def test_get_next_page_url_page_3(self, parser):
@@ -346,6 +347,23 @@ class TestSuprimmoParserPagination:
         soup = BeautifulSoup("<html><body></body></html>", "html.parser")
         url = "https://www.suprimmo.bg/sofia/apartments/"
         next_url = parser.get_next_page_url(soup, url, 2)
+        assert next_url is None
+
+    def test_get_next_page_url_no_next_link_stops_pagination(self, parser):
+        # When there's no rel="next" link, we're on the last page - should return None
+        html = """
+        <html>
+        <head></head>
+        <body>
+        <div class="panel rel shadow offer" data-prop-id="123">
+            <a class="lnk" href="/imot.html">Link</a>
+        </div>
+        </body>
+        </html>
+        """
+        soup = BeautifulSoup(html, "html.parser")
+        url = "https://www.suprimmo.bg/sofia/apartments/page/16/"
+        next_url = parser.get_next_page_url(soup, url, 17)
         assert next_url is None
 
 
