@@ -22,6 +22,8 @@ jobs:
         scraper:
           - name: BazarBg
             folder: bazarbg
+          - name: BulgarianProperties
+            folder: bulgarianproperties
           - name: HomesBg
             folder: homesbg
           - name: ImotBg
@@ -30,6 +32,10 @@ jobs:
             folder: imoticom
           - name: ImotiNet
             folder: imotinet
+          - name: Luximmo
+            folder: luximmo
+          - name: Suprimmo
+            folder: suprimmo
     steps:
       - name: Check out this repo
         uses: actions/checkout@v4
