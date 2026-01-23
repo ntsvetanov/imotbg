@@ -1,0 +1,168 @@
+import re
+
+from src.core.parser import BaseParser, Field, SiteConfig
+from src.core.transforms import (
+    extract_currency,
+    extract_offer_type,
+    extract_property_type,
+    is_without_dds,
+    parse_price,
+)
+
+
+def extract_city(location: str) -> str:
+    """Extract city from location string like 'гр. София, Лозенец'"""
+    if not location:
+        return ""
+    parts = location.split(",")
+    city = parts[0].strip()
+    # Remove prefixes
+    prefixes = ["гр. ", "град ", "с. "]
+    for prefix in prefixes:
+        if city.startswith(prefix):
+            city = city[len(prefix) :]
+    return city.strip()
+
+
+def extract_neighborhood(location: str) -> str:
+    """Extract neighborhood from location string"""
+    if not location:
+        return ""
+    parts = location.split(",")
+    return parts[1].strip() if len(parts) > 1 else ""
+
+
+def extract_area(size_text: str) -> str:
+    """Extract area from text like '85 кв.м.' or '85 m2'"""
+    if not size_text:
+        return ""
+    match = re.search(r"(\d+(?:[.,]\d+)?)\s*(?:кв\.?м|m2|м2)", size_text, re.IGNORECASE)
+    if match:
+        return match.group(1).replace(",", ".")
+    return ""
+
+
+def extract_ref_no(text: str) -> str:
+    """Extract reference number from text"""
+    if not text:
+        return ""
+    match = re.search(r"(?:Ref|№|No)\.?\s*:?\s*(\w+)", text, re.IGNORECASE)
+    return match.group(1) if match else ""
+
+
+class BulgarianPropertiesParser(BaseParser):
+    config = SiteConfig(
+        name="bulgarianproperties",
+        base_url="https://www.bulgarianproperties.bg",
+        encoding="windows-1251",
+        rate_limit_seconds=1.5,
+    )
+
+    class Fields:
+        price = Field("price_text", parse_price)
+        currency = Field("price_text", extract_currency)
+        without_dds = Field("price_text", is_without_dds)
+        city = Field("location", extract_city)
+        neighborhood = Field("location", extract_neighborhood)
+        raw_title = Field("title")
+        property_type = Field("title", extract_property_type)
+        offer_type = Field("title", extract_offer_type)
+        raw_description = Field("description")
+        details_url = Field("details_url", prepend_url=True)
+        area = Field("size_text", extract_area)
+        ref_no = Field("ref_no")
+        agency_name = Field("agency_name")
+
+    def extract_listings(self, soup):
+        # Find all property items - looking for component-property-item class
+        for item in soup.select("div.component-property-item"):
+            # Extract title
+            title_elem = item.select_one("a.title, .title a, .content .title")
+            title = title_elem.get_text(strip=True) if title_elem else ""
+
+            # Extract details URL
+            details_url = None
+            link_elem = item.select_one("a.title, .property-item-top a.image, a[href*='/imoti/']")
+            if link_elem:
+                details_url = link_elem.get("href")
+
+            # Extract price
+            price_elem = item.select_one(
+                ".regular-price, .new-price, .property-prices .regular-price, "
+                ".property-prices .new-price, span.regular-price, span.new-price"
+            )
+            price_text = price_elem.get_text(strip=True) if price_elem else ""
+
+            # Extract location
+            location_elem = item.select_one(".location, span.location")
+            location = location_elem.get_text(strip=True) if location_elem else ""
+
+            # Extract size/area
+            size_elem = item.select_one(".size, span.size")
+            size_text = size_elem.get_text(strip=True) if size_elem else ""
+
+            # Extract description
+            desc_elem = item.select_one(".list-description, .description")
+            description = desc_elem.get_text(strip=True) if desc_elem else ""
+
+            # Extract reference number
+            ref_elem = item.select_one(".ref-no, [class*='ref']")
+            ref_no = ref_elem.get_text(strip=True) if ref_elem else ""
+            if not ref_no and details_url:
+                # Try to extract from URL
+                url_match = re.search(r"/(\d+)\.html", details_url or "")
+                if url_match:
+                    ref_no = url_match.group(1)
+
+            # Extract broker/agency info
+            broker_elem = item.select_one(".broker .broker-info .name, .broker .name")
+            agency_name = broker_elem.get_text(strip=True) if broker_elem else "Bulgarian Properties"
+
+            yield {
+                "price_text": price_text,
+                "title": title,
+                "location": location,
+                "size_text": size_text,
+                "description": description,
+                "details_url": details_url,
+                "ref_no": ref_no,
+                "agency_name": agency_name,
+            }
+
+    def get_total_pages(self, soup) -> int:
+        """Extract total pages from pagination"""
+        # Look for pagination links
+        pagination = soup.select("a.page, .pagination a, a[href*='page=']")
+        max_page = 1
+        for link in pagination:
+            href = link.get("href", "")
+            text = link.get_text(strip=True)
+            # Try to extract page number from href
+            match = re.search(r"page=(\d+)", href)
+            if match:
+                page_num = int(match.group(1))
+                max_page = max(max_page, page_num)
+            # Try to extract from text if it's a number
+            elif text.isdigit():
+                max_page = max(max_page, int(text))
+        return max_page if max_page > 1 else self.config.max_pages
+
+    def get_next_page_url(self, soup, current_url: str, page_number: int) -> str | None:
+        # Check if there are any listings on current page
+        has_items = bool(soup.select("div.component-property-item"))
+        if not has_items:
+            return None
+
+        total = self.get_total_pages(soup)
+        if page_number > total:
+            return None
+
+        # Handle URL pagination
+        # The site uses &page=N format
+        if "page=" in current_url:
+            # Replace existing page parameter
+            return re.sub(r"page=\d+", f"page={page_number}", current_url)
+        else:
+            # Add page parameter
+            separator = "&" if "?" in current_url else "?"
+            return f"{current_url}{separator}page={page_number}"

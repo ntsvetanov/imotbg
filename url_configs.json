@@ -1,4 +1,71 @@
 {
+  "Suprimmo": {
+    "urls": [
+      {
+        "url": "https://www.suprimmo.bg/prodajba/bulgaria/oblast-sofiya/sofiya-imoti/po-tip-apartamenti/",
+        "name": "Sofia Apartments",
+        "folder": "sofia/apartments"
+      },
+      {
+        "url": "https://www.suprimmo.bg/naem/bulgaria/oblast-sofiya/sofiya-imoti/po-tip-apartamenti/",
+        "name": "Sofia Rentals",
+        "folder": "sofia/rentals"
+      },
+      {
+        "url": "https://www.suprimmo.bg/prodajba/bulgaria/oblast-plovdiv/plovdiv-imoti/po-tip-apartamenti/",
+        "name": "Plovdiv Apartments",
+        "folder": "plovdiv/apartments"
+      },
+      {
+        "url": "https://www.suprimmo.bg/naem/bulgaria/oblast-plovdiv/plovdiv-imoti/po-tip-apartamenti/",
+        "name": "Plovdiv Rentals",
+        "folder": "plovdiv/rentals"
+      }    
+    ]
+  },
+  "BulgarianProperties": {
+    "urls": [
+      {
+        "url": "https://www.bulgarianproperties.bg/Search/index.php?stown_text1769199733=%E3%F0.+%D1%EE%F4%E8%FF&squarter_text1769199733=&stip_text1769199733=&minarea=&maxprice=&skeyword=&sadx=1&sady=&spredlog=innear&scntr=1&from_search_form=normal&c=%D2%DA%D0%D1%C8&stown=4732&stip%5B%5D=10",
+        "name": "Sofia Apartments",
+        "folder": "sofia/apartments"
+      },
+      {
+        "url": "https://www.bulgarianproperties.bg/Search/index.php?sady=2&stown_text1769203711=%E3%F0.+%D1%EE%F4%E8%FF&squarter_text1769203711=&stop_text1769203711=&spredlog=in&sdevv_text1769203711=&stip%5B%5D=10&minprice=&maxprice=&minarea=&mingarden=&minbedrom=&skeyword=&sref_no=&c=Search&from_search_form=advanced&stown=4732",
+        "name": "Sofia Rentals",
+        "folder": "sofia/rentals"
+      },
+      {
+        "url": "https://www.bulgarianproperties.bg/Search/index.php?stown_text1769203632=%E3%F0.+%CF%EB%EE%E2%E4%E8%E2&squarter_text1769203632=&stip_text1769203632=&minarea=&maxprice=&skeyword=&sadx=1&sady=&spredlog=innear&scntr=1&from_search_form=normal&c=%D2%DA%D0%D1%C8&stip%5B%5D=10&stown=2833",
+        "name": "Plovdiv Apartments",
+        "folder": "plovdiv/apartments"
+      }
+    ]
+  },
+  "Luximmo": {
+    "urls": [
+      {
+        "url": "https://www.luximmo.bg/prodajba/bulgaria/oblast-sofiya/sofiya-luksozni-imoti/po-tip-apartamenti/index.html",
+        "name": "Sofia Luxury Apartments",
+        "folder": "sofia/apartments"
+      },
+      {
+        "url": "https://www.luximmo.bg/prodajba/bulgaria/oblast-plovdiv/plovdiv-luksozni-imoti/po-tip-apartamenti/index.html",
+        "name": "Plovdiv Luxury Apartments",
+        "folder": "plovdiv/apartments"
+      },
+      {
+        "url": "https://www.luximmo.bg/naem/bulgaria/oblast-sofiya/sofiya-luksozni-imoti/po-tip-apartamenti/index.html",
+        "name": "Sofia Luxury Rentals",
+        "folder": "sofia/rentals"
+      },
+      {
+        "url": "https://www.luximmo.bg/naem/bulgaria/oblast-plovdiv/plovdiv-luksozni-imoti/po-tip-apartamenti/index.html",
+        "name": "Plovdiv Luxury Rentals",
+        "folder": "plovdiv/rentals"
+      }
+    ]
+  },
   "ImotiCom": {
     "urls": [
       {
@@ -105,11 +172,28 @@
     "urls": [
       {
         "url": "https://www.imoti.net/bg/obiavi/r/prodava/sofia/?page=1&sid=gFM8jD",
-        "name": "Search 1"
+        "name": "Sofia Apartments",
+        "folder": "sofia/apartments"
       },
       {
         "url": "https://www.imoti.net/bg/obiavi/r/prodava/sofia/?page=1&sid=iKI3oo",
-        "name": "Search 2"
+        "name": "Sofia Apartments",
+        "folder": "sofia/apartments"
+      },
+      {
+        "url": "https://www.imoti.net/bg/obiavi/r/dava-pod-naem/sofia/?sid=fCk5Ey",
+        "name": "Sofia Rentals",
+        "folder": "sofia/rentals"
+      },
+      {
+        "url": "https://www.imoti.net/bg/obiavi/r/prodava/plovdiv/?sid=gfSTFO",
+        "name": "Plovdiv Apartments",
+        "folder": "plovdiv/apartments"
+      },
+      {
+        "url": "https://www.imoti.net/bg/obiavi/r/dava-pod-naem/plovdiv/?sid=hMcSz2",
+        "name": "Plovdiv Rentals",
+        "folder": "plovdiv/rentals"
       }
     ]
   },
@@ -117,60 +201,80 @@
     "urls": [
       {
         "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=487",
-        "name": "Neighborhood 487"
+        "name": "Neighborhood 487",
+        "folder": "sofia/apartments"
       },
       {
         "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=526",
-        "name": "Neighborhood 526"
+        "name": "Neighborhood 526",
+        "folder": "sofia/apartments"
       },
       {
         "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=421",
-        "name": "Neighborhood 421"
+        "name": "Neighborhood 421",
+        "folder": "sofia/apartments"
       },
       {
         "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=527",
-        "name": "Neighborhood 527"
+        "name": "Neighborhood 527",
+        "folder": "sofia/apartments"
       },
       {
         "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=515",
-        "name": "Neighborhood 515"
+        "name": "Neighborhood 515",
+        "folder": "sofia/apartments"
       },
       {
         "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=424",
-        "name": "Neighborhood 424"
+        "name": "Neighborhood 424",
+        "folder": "sofia/apartments"
       },
       {
         "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=423",
-        "name": "Neighborhood 423"
+        "name": "Neighborhood 423",
+        "folder": "sofia/apartments"
       },
       {
         "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=503",
-        "name": "Neighborhood 503"
+        "name": "Neighborhood 503",
+        "folder": "sofia/apartments"
       },
       {
         "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=517",
-        "name": "Neighborhood 517"
+        "name": "Neighborhood 517",
+        "folder": "sofia/apartments"
       },
       {
         "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=437",
-        "name": "Neighborhood 437"
+        "name": "Neighborhood 437",
+        "folder": "sofia/apartments"
       },
       {
         "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=447",
-        "name": "Neighborhood 447"
+        "name": "Neighborhood 447",
+        "folder": "sofia/apartments"
       },
       {
         "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=403",
-        "name": "Neighborhood 403"
+        "name": "Neighborhood 403",
+        "folder": "sofia/apartments"
       },
       {
         "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=1&typeId=ApartmentSell&neighbourhoods%5B%5D=412",
-        "name": "Neighborhood 412"
+        "name": "Neighborhood 412",
+        "folder": "sofia/apartments"
       },
       {
         "url": "https://www.homes.bg/api/offers?currencyId=1&filterOrderBy=0&locationId=0&typeId=LandAgro",
-        "name": "Land"
+        "name": "Land",
+        "folder": "sofia/land"
+      },
+      {
+        "url": "https://www.homes.bg/api/offers?apartmentType%5B%5D=2&apartmentType%5B%5D=3&apartmentType%5B%5D=4&apartmentType%5B%5D=5&apartmentType%5B%5D=6&currencyId=1&filterOrderBy=0&locationId=2&typeId=ApartmentSell",
+        "name": "Plovdiv Neighborhood 1125",
+        "folder": "plovdiv/apartments"
       }
     ]
   }
+
 }

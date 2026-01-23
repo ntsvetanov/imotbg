@@ -29,8 +29,8 @@ class TestSiteParsersRegistry:
         assert "ImotiCom" in SITE_PARSERS
         assert SITE_PARSERS["ImotiCom"] == ImotiComParser
 
-    def test_registry_has_five_parsers(self):
-        assert len(SITE_PARSERS) == 5
+    def test_registry_has_all_parsers(self):
+        assert len(SITE_PARSERS) == 8
 
 
 class TestGetParser:
