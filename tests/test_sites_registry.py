@@ -30,7 +30,7 @@ class TestSiteParsersRegistry:
         assert SITE_PARSERS["ImotiCom"] == ImotiComParser
 
     def test_registry_has_all_parsers(self):
-        assert len(SITE_PARSERS) == 8
+        assert len(SITE_PARSERS) == 9
 
 
 class TestGetParser:

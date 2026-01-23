@@ -14,6 +14,7 @@ SITE_PARSERS = {
     "ImotiCom": ImotiComParser,
     "ImotBg": ImotBgParser,
     "ImotiNet": ImotiNetParser,
+    "ImotiNetPlovdiv": ImotiNetParser,
     "Luximmo": LuximmoParser,
     "Suprimmo": SuprimmoParser,
 }
