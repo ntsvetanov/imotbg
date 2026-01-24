@@ -111,7 +111,7 @@ class TestLuximmoParserConfig:
         parser = LuximmoParser()
         assert parser.config.name == "luximmo"
         assert parser.config.base_url == "https://www.luximmo.bg"
-        assert parser.config.encoding == "utf-8"
+        assert parser.config.encoding == "windows-1251"
         assert parser.config.rate_limit_seconds == 1.5
 
 

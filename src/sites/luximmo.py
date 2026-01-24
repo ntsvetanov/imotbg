@@ -10,30 +10,34 @@ from src.core.transforms import (
 
 
 def extract_city(location: str) -> str:
-    """Extract city from location like 'гр. София / кв. Лозенец'"""
+    """Extract city from location like 'Виена / кв. Wieden (4)'"""
     if not location:
         return ""
-    # Look for pattern like "гр. София" or just take first part
-    match = re.search(r"(?:гр\.\s*|град\s*)?([\w\s]+?)(?:\s*/|$)", location)
-    if match:
-        return match.group(1).strip()
+    # Take first part before "/" and clean it
     parts = location.split("/")
-    return parts[0].strip() if parts else ""
+    city = parts[0].strip()
+    # Remove common prefixes
+    city = re.sub(r"^(?:гр\.|град)\s*", "", city, flags=re.IGNORECASE)
+    return city.strip()
 
 
 def extract_neighborhood(location: str) -> str:
-    """Extract neighborhood from location like 'гр. София / кв. Лозенец'"""
+    """Extract neighborhood from location like 'Виена / кв. Wieden (4)'"""
     if not location:
         return ""
-    # Look for kv. pattern or second part after /
-    match = re.search(r"кв\.\s*([\w\s]+)", location)
+    # Look for "кв." pattern (Cyrillic)
+    match = re.search(r"кв\.\s*([^/\n]+?)(?:\s*\(|$|\s*Област)", location)
     if match:
         return match.group(1).strip()
+    # Fallback: take second part after /
     parts = location.split("/")
     if len(parts) > 1:
         neighborhood = parts[1].strip()
-        # Remove "кв." prefix if present
-        return re.sub(r"^кв\.\s*", "", neighborhood)
+        # Remove "кв." prefix if present and trailing region info
+        neighborhood = re.sub(r"^кв\.\s*", "", neighborhood)
+        # Remove anything after "Област" or parenthesis
+        neighborhood = re.sub(r"\s*(?:Област|\().*$", "", neighborhood)
+        return neighborhood.strip()
     return ""
 
 
@@ -57,7 +61,7 @@ class LuximmoParser(BaseParser):
     config = SiteConfig(
         name="luximmo",
         base_url="https://www.luximmo.bg",
-        encoding="utf-8",
+        encoding="windows-1251",
         rate_limit_seconds=1.5,
     )
 
@@ -107,7 +111,8 @@ class LuximmoParser(BaseParser):
             location = ""
             if location_elem:
                 location = location_elem.get_text(separator=" ", strip=True)
-                # Clean up the location string
+                # Clean up the location string - remove map link text and extra whitespace
+                location = re.sub(r"\s*карта\s*$", "", location)
                 location = re.sub(r"\s+", " ", location)
 
             # Extract area
