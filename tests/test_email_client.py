@@ -49,7 +49,6 @@ class TestEmailClientInit:
                 if "src.infrastructure.clients.email_client" in sys.modules:
                     del sys.modules["src.infrastructure.clients.email_client"]
 
-
                 EmailClient()
                 mock_mt.MailtrapClient.assert_called_with(token="test-token-123")
 
