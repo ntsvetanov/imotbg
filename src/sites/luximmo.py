@@ -3,14 +3,16 @@ import re
 from src.core.parser import BaseParser, Field, SiteConfig
 from src.core.transforms import (
     extract_currency,
+    extract_offer_type,
     extract_property_type,
     is_without_dds,
     parse_price,
 )
+from src.core.normalization import normalize_city, normalize_neighborhood
 
 
-def extract_city(location: str) -> str:
-    """Extract city from location like 'Виена / кв. Wieden (4)'"""
+def extract_city_from_location(location: str) -> str:
+    """Extract and normalize city from location like 'Виена / кв. Wieden (4)'"""
     if not location:
         return ""
     # Take first part before "/" and clean it
@@ -18,27 +20,35 @@ def extract_city(location: str) -> str:
     city = parts[0].strip()
     # Remove common prefixes
     city = re.sub(r"^(?:гр\.|град)\s*", "", city, flags=re.IGNORECASE)
-    return city.strip()
+    city = city.strip()
+    result = normalize_city(city)
+    return result.value if hasattr(result, "value") else result
 
 
-def extract_neighborhood(location: str) -> str:
-    """Extract neighborhood from location like 'Виена / кв. Wieden (4)'"""
+def extract_neighborhood_from_location(location: str) -> str:
+    """Extract and normalize neighborhood from location like 'Виена / кв. Wieden (4)'"""
     if not location:
         return ""
     # Look for "кв." pattern (Cyrillic)
     match = re.search(r"кв\.\s*([^/\n]+?)(?:\s*\(|$|\s*Област)", location)
     if match:
-        return match.group(1).strip()
-    # Fallback: take second part after /
-    parts = location.split("/")
-    if len(parts) > 1:
-        neighborhood = parts[1].strip()
-        # Remove "кв." prefix if present and trailing region info
-        neighborhood = re.sub(r"^кв\.\s*", "", neighborhood)
-        # Remove anything after "Област" or parenthesis
-        neighborhood = re.sub(r"\s*(?:Област|\().*$", "", neighborhood)
-        return neighborhood.strip()
-    return ""
+        neighborhood = match.group(1).strip()
+    else:
+        # Fallback: take second part after /
+        parts = location.split("/")
+        if len(parts) > 1:
+            neighborhood = parts[1].strip()
+            # Remove "кв." prefix if present and trailing region info
+            neighborhood = re.sub(r"^кв\.\s*", "", neighborhood)
+            # Remove anything after "Област" or parenthesis
+            neighborhood = re.sub(r"\s*(?:Област|\().*$", "", neighborhood)
+            neighborhood = neighborhood.strip()
+        else:
+            return ""
+
+    city = extract_city_from_location(location)
+    result = normalize_neighborhood(neighborhood, city)
+    return result.value if hasattr(result, "value") else result
 
 
 def extract_area(area_text: str) -> str:
@@ -69,8 +79,8 @@ class LuximmoParser(BaseParser):
         price = Field("price_text", parse_price)
         currency = Field("price_text", extract_currency)
         without_dds = Field("price_text", is_without_dds)
-        city = Field("location", extract_city)
-        neighborhood = Field("location", extract_neighborhood)
+        city = Field("location", extract_city_from_location)
+        neighborhood = Field("location", extract_neighborhood_from_location)
         raw_title = Field("title")
         property_type = Field("title", extract_property_type)
         offer_type = Field("offer_type")
@@ -79,7 +89,7 @@ class LuximmoParser(BaseParser):
         area = Field("area_text", extract_area)
         ref_no = Field("ref_no")
         floor = Field("floor")
-        agency_name = Field("agency_name")
+        agency = Field("agency_name")
 
     def extract_listings(self, soup):
         # Find all property cards
@@ -133,12 +143,8 @@ class LuximmoParser(BaseParser):
             # Extract reference number from URL
             ref_no = extract_ref_from_url(details_url)
 
-            # Extract offer type from URL or title
-            offer_type = ""
-            if "pod-naem" in details_url or "наем" in title.lower():
-                offer_type = "наем"
-            elif "za-prodajba" in details_url or "продажба" in title.lower():
-                offer_type = "продава"
+            # Determine offer type from URL - use shared normalization
+            offer_type = extract_offer_type(title, details_url)
 
             yield {
                 "price_text": price_text,

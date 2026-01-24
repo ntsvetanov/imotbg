@@ -1,5 +1,18 @@
 from src.core.parser import BaseParser, Field, SiteConfig
 from src.core.transforms import extract_property_type, to_float_or_zero
+from src.core.normalization import normalize_city, normalize_neighborhood, normalize_offer_type
+
+
+def normalize_city_value(city: str) -> str:
+    """Normalize city name using the normalization module."""
+    result = normalize_city(city)
+    return result.value if hasattr(result, "value") else result
+
+
+def normalize_neighborhood_value(neighborhood: str) -> str:
+    """Normalize neighborhood name using the normalization module."""
+    result = normalize_neighborhood(neighborhood)
+    return result.value if hasattr(result, "value") else result
 
 
 class HomesBgParser(BaseParser):
@@ -16,8 +29,8 @@ class HomesBgParser(BaseParser):
         raw_title = Field("title")
         property_type = Field("title", extract_property_type)
         raw_description = Field("description")
-        city = Field("city")
-        neighborhood = Field("neighborhood")
+        city = Field("city", normalize_city_value)
+        neighborhood = Field("neighborhood", normalize_neighborhood_value)
         price = Field("price_value", to_float_or_zero)
         currency = Field("price_currency")
         details_url = Field("details_url", prepend_url=True)
@@ -37,7 +50,9 @@ class HomesBgParser(BaseParser):
 
     def _determine_offer_type(self, search_criteria: dict) -> str:
         type_id = search_criteria.get("typeId", "")
-        return "продава" if "Sell" in type_id else "наем"
+        # Use normalization to get consistent value
+        result = normalize_offer_type("", type_id)
+        return result.value if hasattr(result, "value") else result
 
     def extract_listings(self, data: dict):
         search_criteria = data.get("searchCriteria", {})

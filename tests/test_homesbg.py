@@ -217,7 +217,8 @@ class TestHomesBgParserHelpers:
         assert parser._determine_offer_type({"typeId": "ApartmentRent"}) == "наем"
 
     def test_determine_offer_type_empty(self, parser):
-        assert parser._determine_offer_type({}) == "наем"
+        # When no typeId is provided, returns empty string
+        assert parser._determine_offer_type({}) == ""
 
 
 class TestHomesBgParserEdgeCases:
@@ -239,7 +240,8 @@ class TestHomesBgParserEdgeCases:
         data = {"result": [{"id": 1, "location": "", "price": {}}]}
         listings = list(parser.extract_listings(data))
         assert len(listings) == 1
-        assert listings[0]["offer_type"] == "наем"
+        # No searchCriteria means no offer_type can be determined
+        assert listings[0]["offer_type"] == ""
 
     def test_extract_listing_missing_price_data(self, parser):
         data = {"searchCriteria": {}, "result": [{"id": 1, "location": "Лозенец, София"}]}

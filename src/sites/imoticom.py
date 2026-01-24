@@ -8,21 +8,32 @@ from src.core.transforms import (
     extract_property_type,
     is_without_dds,
     parse_price,
+    extract_agency,
 )
+from src.core.normalization import normalize_city, normalize_neighborhood
 
 
-def extract_city(location: str) -> str:
+def extract_city_from_location(location: str) -> str:
+    """Extract and normalize city from location."""
     if not location:
         return ""
     parts = location.split(",")
-    return parts[0].strip() if parts else ""
+    city = parts[0].strip() if parts else ""
+    result = normalize_city(city)
+    return result.value if hasattr(result, "value") else result
 
 
-def extract_neighborhood(location: str) -> str:
+def extract_neighborhood_from_location(location: str) -> str:
+    """Extract and normalize neighborhood from location."""
     if not location:
         return ""
     parts = location.split(",")
-    return parts[1].strip() if len(parts) > 1 else ""
+    neighborhood = parts[1].strip() if len(parts) > 1 else ""
+    if not neighborhood:
+        return ""
+    city = extract_city_from_location(location)
+    result = normalize_neighborhood(neighborhood, city)
+    return result.value if hasattr(result, "value") else result
 
 
 def extract_area(location_info: str) -> str:
@@ -74,8 +85,8 @@ class ImotiComParser(BaseParser):
         price = Field("price_text", parse_price)
         currency = Field("price_text", extract_currency)
         without_dds = Field("price_text", is_without_dds)
-        city = Field("location", extract_city)
-        neighborhood = Field("location", extract_neighborhood)
+        city = Field("location", extract_city_from_location)
+        neighborhood = Field("location", extract_neighborhood_from_location)
         raw_title = Field("title")
         property_type = Field("title", extract_property_type)
         offer_type = Field("title", extract_offer_type)
@@ -83,7 +94,7 @@ class ImotiComParser(BaseParser):
         details_url = Field("details_url")
         contact_info = Field("contact_info")
         area = Field("location_info", extract_area)
-        agency_name = Field("agency_name")
+        agency = Field("agency_name", extract_agency)
         agency_url = Field("agency_url")
         ref_no = Field("ref_no")
         total_offers = Field("total_offers")

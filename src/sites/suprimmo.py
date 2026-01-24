@@ -1,15 +1,18 @@
 import re
 
+from src.core.enums import OfferType
 from src.core.parser import BaseParser, Field, SiteConfig
 from src.core.transforms import (
     extract_currency,
+    extract_offer_type,
     extract_property_type,
     is_without_dds,
     parse_price,
 )
+from src.core.normalization import normalize_city, normalize_neighborhood
 
 
-def extract_city(location: str) -> str:
+def extract_city_from_location(location: str) -> str:
     """Extract city from location like 'гр. София / кв. Лозенец' or 'с. Панчарево'"""
     if not location:
         return ""
@@ -18,18 +21,19 @@ def extract_city(location: str) -> str:
     # Look for "гр. X" or "с. X" pattern
     match = re.search(r"(?:гр\.|с\.)\s*([\w\s-]+?)(?:\s*/|<br|$)", location, re.IGNORECASE)
     if match:
-        return match.group(1).strip()
-    # Try to get first part before /
-    parts = location.split("/")
-    if parts:
-        city = parts[0].strip()
+        city = match.group(1).strip()
+    else:
+        # Try to get first part before /
+        parts = location.split("/")
+        city = parts[0].strip() if parts else ""
         # Remove prefixes
         city = re.sub(r"^(?:гр\.|с\.)\s*", "", city)
-        return city.strip()
-    return ""
+
+    result = normalize_city(city)
+    return result.value if hasattr(result, "value") else result
 
 
-def extract_neighborhood(location: str) -> str:
+def extract_neighborhood_from_location(location: str) -> str:
     """Extract neighborhood from location like 'гр. София / кв. Лозенец'"""
     if not location:
         return ""
@@ -37,14 +41,20 @@ def extract_neighborhood(location: str) -> str:
     # Look for "кв. X" pattern
     match = re.search(r"кв\.\s*([\w\s-]+)", location, re.IGNORECASE)
     if match:
-        return match.group(1).strip()
-    # Try second part after /
-    parts = location.split("/")
-    if len(parts) > 1:
-        neighborhood = parts[1].strip()
-        neighborhood = re.sub(r"^кв\.\s*", "", neighborhood)
-        return neighborhood.strip()
-    return ""
+        neighborhood = match.group(1).strip()
+    else:
+        # Try second part after /
+        parts = location.split("/")
+        if len(parts) > 1:
+            neighborhood = parts[1].strip()
+            neighborhood = re.sub(r"^кв\.\s*", "", neighborhood)
+        else:
+            return ""
+
+    # Get city for context-aware normalization
+    city = extract_city_from_location(location)
+    result = normalize_neighborhood(neighborhood, city)
+    return result.value if hasattr(result, "value") else result
 
 
 def extract_area(area_text: str) -> str:
@@ -69,17 +79,6 @@ def extract_ref_from_contact_url(url: str) -> str:
         return ""
     match = re.search(r"ref_no=([^&\"']+)", url)
     return match.group(1).strip() if match else ""
-
-
-def extract_offer_type_from_url(url: str) -> str:
-    """Extract offer type from URL - prodajba (sell) or naem (rent)"""
-    if not url:
-        return ""
-    if "prodajba" in url.lower() or "za-prodajba" in url.lower():
-        return "продава"
-    if "naem" in url.lower() or "pod-naem" in url.lower():
-        return "наем"
-    return ""
 
 
 def calculate_price_per_m2(raw: dict) -> str:
@@ -108,8 +107,8 @@ class SuprimmoParser(BaseParser):
         price = Field("price_text", parse_price)
         currency = Field("price_text", extract_currency)
         without_dds = Field("price_text", is_without_dds)
-        city = Field("location", extract_city)
-        neighborhood = Field("location", extract_neighborhood)
+        city = Field("location", extract_city_from_location)
+        neighborhood = Field("location", extract_neighborhood_from_location)
         raw_title = Field("title")
         property_type = Field("title", extract_property_type)
         offer_type = Field("offer_type")
@@ -206,8 +205,9 @@ class SuprimmoParser(BaseParser):
                 ref_no = prop_id
 
             # Determine offer type from URL first, then fall back to page context
-            offer_type = extract_offer_type_from_url(details_url)
-            if not offer_type:
+            offer_type = extract_offer_type("", details_url)
+            # If offer_type is not a known value (продава or наем), use default
+            if offer_type not in (OfferType.SALE.value, OfferType.RENT.value):
                 offer_type = default_offer_type
 
             # Count photos

@@ -4,8 +4,8 @@ from bs4 import BeautifulSoup
 from src.sites.imoticom import (
     ImotiComParser,
     extract_area,
-    extract_city,
-    extract_neighborhood,
+    extract_city_from_location as extract_city,
+    extract_neighborhood_from_location as extract_neighborhood,
     extract_ref_from_url,
     calculate_price_per_m2,
 )
@@ -87,10 +87,10 @@ SAMPLE_PAGE_HTML = f"""
 
 class TestExtractHelpers:
     def test_extract_city(self):
-        assert extract_city("град София, Белите брези") == "град София"
+        assert extract_city("град София, Белите брези") == "София"
 
     def test_extract_city_no_neighborhood(self):
-        assert extract_city("град София") == "град София"
+        assert extract_city("град София") == "София"
 
     def test_extract_city_empty(self):
         assert extract_city("") == ""
@@ -288,7 +288,7 @@ class TestImotiComParserTransform:
         assert result.price == 179000.0
         assert result.currency == "EUR"
         assert result.without_dds is True
-        assert result.city == "град София"
+        assert result.city == "София"
         assert result.neighborhood == "Белите брези"
         assert result.property_type == "двустаен"
         assert result.offer_type == "продава"
@@ -317,7 +317,7 @@ class TestImotiComParserTransform:
         assert result.site == "imoticom"
         assert result.price == 250000.0
         assert result.currency == "BGN"
-        assert result.city == "град Пловдив"
+        assert result.city == "Пловдив"
         assert result.neighborhood == "Център"
         assert result.property_type == "тристаен"
 
@@ -534,7 +534,7 @@ class TestImotiComParserEdgeCases:
         assert extract_area("София\n100кв.м") == "100 кв.м"
 
     def test_extract_city_multiple_commas(self):
-        assert extract_city("град София, Лозенец, ул. Тест") == "град София"
+        assert extract_city("град София, Лозенец, ул. Тест") == "София"
 
     def test_extract_neighborhood_multiple_commas(self):
         assert extract_neighborhood("град София, Лозенец, ул. Тест") == "Лозенец"

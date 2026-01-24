@@ -19,7 +19,7 @@ def _clean_raw_record(record: dict) -> dict:
 
     Pandas reads CSV and:
     - Converts empty strings to NaN (float)
-    - Converts numeric-looking strings to floats
+    - Converts numeric-looking strings to floats/ints
 
     We need to convert these back to appropriate types for the parser.
     """
@@ -31,6 +31,9 @@ def _clean_raw_record(record: dict) -> dict:
             else:
                 # Convert floats back to string (pandas may have coerced string columns)
                 cleaned[key] = str(value)
+        elif isinstance(value, int):
+            # Convert integers to string (ref_no, etc. may be read as int)
+            cleaned[key] = str(value)
         else:
             cleaned[key] = value
     return cleaned

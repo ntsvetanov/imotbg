@@ -7,22 +7,30 @@ from src.core.transforms import (
     extract_property_type,
     parse_price,
 )
+from src.core.normalization import normalize_city, normalize_neighborhood
 
 
 def extract_alo_city(location: str) -> str:
-    """Extract city from location like 'Редута, София' -> 'София'"""
+    """Extract and normalize city from location like 'Редута, София' -> 'София'"""
     if not location:
         return ""
     parts = location.split(", ")
-    return parts[-1].strip() if parts else ""
+    city = parts[-1].strip() if parts else ""
+    result = normalize_city(city)
+    return result.value if hasattr(result, "value") else result
 
 
 def extract_alo_neighborhood(location: str) -> str:
-    """Extract neighborhood from location like 'Редута, София' -> 'Редута'"""
+    """Extract and normalize neighborhood from location like 'Редута, София' -> 'Редута'"""
     if not location:
         return ""
     parts = location.split(", ")
-    return parts[0].strip() if len(parts) > 1 else ""
+    neighborhood = parts[0].strip() if len(parts) > 1 else ""
+    if not neighborhood:
+        return ""
+    city = extract_alo_city(location)
+    result = normalize_neighborhood(neighborhood, city)
+    return result.value if hasattr(result, "value") else result
 
 
 class AloBgParser(BaseParser):
@@ -45,7 +53,7 @@ class AloBgParser(BaseParser):
         floor = Field("floor_text")  # Keep as string to match model
         details_url = Field("details_url", prepend_url=True)
         raw_description = Field("description")
-        agency_name = Field("agency_name")
+        agency = Field("agency_name")
 
     def _extract_param_value(self, item, param_name: str) -> str:
         """Extract parameter value from listing item by looking for param title."""

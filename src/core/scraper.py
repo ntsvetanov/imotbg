@@ -4,6 +4,7 @@ from datetime import datetime
 import pandas as pd
 
 from src.core.parser import BaseParser
+from src.core.normalization import clear_unknown_values, log_unknown_values_summary
 from src.infrastructure.clients.http_client import HttpClient
 from src.logger_setup import get_logger
 from src.utils import parse_soup, save_df_to_csv
@@ -26,6 +27,9 @@ class GenericScraper:
         return parse_soup(html)
 
     def scrape(self, start_url: str) -> dict:
+        # Clear unknown values tracker at the start of each scrape
+        clear_unknown_values()
+
         raw_listings = []
         current_url = start_url
         page_number = 1
@@ -52,6 +56,9 @@ class GenericScraper:
         raw_df = pd.DataFrame(raw_listings)
         processed_listings = [self.parser.transform_listing(r).model_dump() for r in raw_listings]
         processed_df = pd.DataFrame(processed_listings)
+
+        # Log summary of unknown values encountered during this scrape
+        log_unknown_values_summary()
 
         return {"raw_df": raw_df, "processed_df": processed_df}
 

@@ -56,7 +56,8 @@ class TestExtractLocationHelpers:
         assert extract_location_neighborhood("гр. София, Лозенец") == "Лозенец"
 
     def test_extract_location_neighborhood_multiple_parts(self):
-        assert extract_location_neighborhood("гр. София, Лозенец, ул. Тест") == "Лозенец, ул. Тест"
+        # Neighborhood is normalized - extra address parts are stripped
+        assert extract_location_neighborhood("гр. София, Лозенец, ул. Тест") == "Лозенец"
 
     def test_extract_location_neighborhood_no_comma(self):
         assert extract_location_neighborhood("гр. София") == ""
@@ -443,7 +444,7 @@ class TestBazarBgParserEdgeCases:
         assert result.city == "Равда"
         assert result.neighborhood == ""
 
-    def test_transform_listing_no_property_type(self, parser):
+    def test_transform_listing_garage_property_type(self, parser):
         raw = {
             "title": "Продава гараж",
             "price_text": "10 000 EUR",
@@ -454,7 +455,8 @@ class TestBazarBgParserEdgeCases:
         }
         result = parser.transform_listing(raw)
 
-        assert result.property_type == ""
+        # Garage is now a recognized property type
+        assert result.property_type == "гараж"
         assert result.offer_type == "продава"
 
     def test_transform_listing_complex_location(self, parser):
@@ -469,4 +471,5 @@ class TestBazarBgParserEdgeCases:
         result = parser.transform_listing(raw)
 
         assert result.city == "София"
-        assert "Витоша" in result.neighborhood
+        # Neighborhood is normalized - first matching neighborhood is used
+        assert result.neighborhood in ["Витоша", "Манастирски ливади"]

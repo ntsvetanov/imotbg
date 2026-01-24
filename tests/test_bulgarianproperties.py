@@ -4,15 +4,13 @@ from bs4 import BeautifulSoup
 from src.sites.bulgarianproperties import (
     BulgarianPropertiesParser,
     extract_area,
-    extract_city,
+    extract_city_from_location as extract_city,
     extract_floor,
-    extract_neighborhood,
-    extract_offer_type_from_url,
+    extract_neighborhood_from_location as extract_neighborhood,
     extract_price_per_m2,
-    extract_property_type_from_url,
-    extract_ref_no,
     extract_ref_no_from_url,
 )
+from src.core.transforms import extract_offer_type, extract_property_type
 
 SAMPLE_LISTING_HTML = """
 <div class="component-property-item">
@@ -104,23 +102,6 @@ class TestExtractArea:
         assert extract_area("") == ""
 
 
-class TestExtractRefNo:
-    def test_ref_format(self):
-        assert extract_ref_no("Ref: BP12345") == "BP12345"
-
-    def test_no_format(self):
-        assert extract_ref_no("No. 12345") == "12345"
-
-    def test_number_format(self):
-        assert extract_ref_no("№ ABC123") == "ABC123"
-
-    def test_no_match(self):
-        assert extract_ref_no("Some other text") == ""
-
-    def test_empty(self):
-        assert extract_ref_no("") == ""
-
-
 class TestExtractRefNoFromUrl:
     def test_imot_pattern(self):
         url = "/imoti-mezoneti/imot-89171-mezonet-pod-naem.html"
@@ -197,58 +178,73 @@ class TestExtractFloor:
         assert extract_floor(None) == ""
 
 
-class TestExtractOfferTypeFromUrl:
+class TestExtractOfferType:
     def test_pod_naem(self):
         url = "/imoti-dvustayni-apartamenti/imot-89147-dvustaen-apartament-pod-naem-v-sofiya.html"
-        assert extract_offer_type_from_url(url) == "наем"
+        result = extract_offer_type("", url)
+        assert result.value == "наем" if hasattr(result, "value") else result == "наем"
 
     def test_naem(self):
         url = "/imoti/imot-123-naem-sofia.html"
-        assert extract_offer_type_from_url(url) == "наем"
+        result = extract_offer_type("", url)
+        assert result.value == "наем" if hasattr(result, "value") else result == "наем"
 
     def test_prodava(self):
         url = "/imoti/imot-123-prodava-sofia.html"
-        assert extract_offer_type_from_url(url) == "продава"
+        result = extract_offer_type("", url)
+        assert result.value == "продава" if hasattr(result, "value") else result == "продава"
 
     def test_prodazhba(self):
         url = "/prodazhba/imot-123.html"
-        assert extract_offer_type_from_url(url) == "продава"
+        result = extract_offer_type("", url)
+        assert result.value == "продава" if hasattr(result, "value") else result == "продава"
 
     def test_no_match(self):
         url = "/imoti/imot-123.html"
-        assert extract_offer_type_from_url(url) == ""
+        result = extract_offer_type("", url)
+        # When no match is found, returns the original URL (soft validation)
+        assert result == url
 
     def test_empty(self):
-        assert extract_offer_type_from_url("") == ""
+        result = extract_offer_type("", "")
+        assert result == ""
 
 
-class TestExtractPropertyTypeFromUrl:
+class TestExtractPropertyType:
     def test_ednostaen(self):
         url = "/imoti-ednostayni-apartamenti/imot-123.html"
-        assert extract_property_type_from_url(url) == "едностаен"
+        result = extract_property_type("", url)
+        assert result.value == "едностаен" if hasattr(result, "value") else result == "едностаен"
 
     def test_dvustaen(self):
         url = "/imoti-dvustayni-apartamenti/imot-89147-dvustaen-apartament-v-sofiya.html"
-        assert extract_property_type_from_url(url) == "двустаен"
+        result = extract_property_type("", url)
+        assert result.value == "двустаен" if hasattr(result, "value") else result == "двустаен"
 
     def test_tristaen(self):
         url = "/imoti-tristayni-apartamenti/imot-123.html"
-        assert extract_property_type_from_url(url) == "тристаен"
+        result = extract_property_type("", url)
+        assert result.value == "тристаен" if hasattr(result, "value") else result == "тристаен"
 
     def test_chetiristaen(self):
         url = "/imoti-chetiristayni-apartamenti/imot-123.html"
-        assert extract_property_type_from_url(url) == "четиристаен"
+        result = extract_property_type("", url)
+        assert result.value == "четиристаен" if hasattr(result, "value") else result == "четиристаен"
 
     def test_mezonet(self):
         url = "/imoti-mezoneti/imot-89171-mezonet-pod-naem-v-sofiya.html"
-        assert extract_property_type_from_url(url) == "мезонет"
+        result = extract_property_type("", url)
+        assert result.value == "мезонет" if hasattr(result, "value") else result == "мезонет"
 
     def test_no_match(self):
         url = "/imoti/imot-123.html"
-        assert extract_property_type_from_url(url) == ""
+        result = extract_property_type("", url)
+        # When no match is found, returns the original URL (soft validation)
+        assert result == url
 
     def test_empty(self):
-        assert extract_property_type_from_url("") == ""
+        result = extract_property_type("", "")
+        assert result == ""
 
 
 class TestBulgarianPropertiesParserConfig:

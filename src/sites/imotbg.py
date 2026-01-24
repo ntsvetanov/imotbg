@@ -9,6 +9,7 @@ from src.core.transforms import (
     extract_property_type,
     is_without_dds,
     parse_price,
+    extract_agency,
 )
 
 
@@ -81,7 +82,7 @@ class ImotBgParser(BaseParser):
         details_url = Field("details_url", prepend_url=True)
         num_photos = Field("photos_text", extract_photo_count)
         contact_info = Field("contact_info")
-        agency_name = Field("agency_name")
+        agency = Field("agency_name", extract_agency)
         agency_url = Field("agency_url", prepend_url=True)
         area = Field("info_text", extract_area)
         floor = Field("info_text", extract_floor)

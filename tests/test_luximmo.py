@@ -4,8 +4,8 @@ from bs4 import BeautifulSoup
 from src.sites.luximmo import (
     LuximmoParser,
     extract_area,
-    extract_city,
-    extract_neighborhood,
+    extract_city_from_location as extract_city,
+    extract_neighborhood_from_location as extract_neighborhood,
     extract_ref_from_url,
 )
 

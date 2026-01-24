@@ -5,12 +5,12 @@ from src.sites.suprimmo import (
     SuprimmoParser,
     calculate_price_per_m2,
     extract_area,
-    extract_city,
+    extract_city_from_location as extract_city,
     extract_floor,
-    extract_neighborhood,
-    extract_offer_type_from_url,
+    extract_neighborhood_from_location as extract_neighborhood,
     extract_ref_from_contact_url,
 )
+from src.core.transforms import extract_offer_type
 
 SAMPLE_LISTING_HTML = """
 <div class="panel rel shadow offer" data-prop-id="123456">
@@ -142,24 +142,32 @@ class TestExtractRefFromContactUrl:
         assert extract_ref_from_contact_url("") == ""
 
 
-class TestExtractOfferTypeFromUrl:
+class TestExtractOfferType:
     def test_prodajba(self):
-        assert extract_offer_type_from_url("/prodajba-imot-sofia.html") == "продава"
+        result = extract_offer_type("", "/prodajba-imot-sofia.html")
+        assert result.value == "продава" if hasattr(result, "value") else result == "продава"
 
     def test_za_prodajba(self):
-        assert extract_offer_type_from_url("/za-prodajba-apartament.html") == "продава"
+        result = extract_offer_type("", "/za-prodajba-apartament.html")
+        assert result.value == "продава" if hasattr(result, "value") else result == "продава"
 
     def test_naem(self):
-        assert extract_offer_type_from_url("/naem-imot-sofia.html") == "наем"
+        result = extract_offer_type("", "/naem-imot-sofia.html")
+        assert result.value == "наем" if hasattr(result, "value") else result == "наем"
 
     def test_pod_naem(self):
-        assert extract_offer_type_from_url("/pod-naem-apartament.html") == "наем"
+        result = extract_offer_type("", "/pod-naem-apartament.html")
+        assert result.value == "наем" if hasattr(result, "value") else result == "наем"
 
     def test_no_match(self):
-        assert extract_offer_type_from_url("/imot-sofia.html") == ""
+        url = "/imot-sofia.html"
+        result = extract_offer_type("", url)
+        # When no match is found, returns the original URL (soft validation)
+        assert result == url
 
     def test_empty(self):
-        assert extract_offer_type_from_url("") == ""
+        result = extract_offer_type("", "")
+        assert result == ""
 
 
 class TestCalculatePricePerM2:

@@ -1,22 +1,33 @@
+"""
+Transform functions for property listing data.
+
+These functions are used to extract and normalize data from raw scraped content.
+The normalization module is used for enum-based normalization.
+"""
+
 import re
 
-PROPERTY_TYPE_MAPPING = {
-    "1-стаен": "едностаен",
-    "едностаен": "едностаен",
-    "2-стаен": "двустаен",
-    "двустаен": "двустаен",
-    "3-стаен": "тристаен",
-    "тристаен": "тристаен",
-    "4-стаен": "четиристаен",
-    "четиристаен": "четиристаен",
-    "многостаен": "многостаен",
-    "мезонет": "мезонет",
-    "земеделска": "земя",
-    "земя": "земя",
-}
+from src.core.enums import City, Currency, OfferType, PropertyType
+from src.core.normalization import (
+    normalize_agency,
+    normalize_city,
+    normalize_currency,
+    normalize_neighborhood,
+    normalize_offer_type,
+    normalize_property_type,
+)
 
 
 def parse_price(text: str) -> float:
+    """
+    Parse price from text, handling various formats.
+
+    Args:
+        text: Price text like "150 000 €" or "200000лв"
+
+    Returns:
+        Parsed price as float, or 0.0 if parsing fails
+    """
     if not text:
         return 0.0
     first_price = text.split("лв")[0].split("€")[0]
@@ -25,59 +36,122 @@ def parse_price(text: str) -> float:
 
 
 def extract_currency(text: str) -> str:
-    if not text:
-        return ""
-    text_lower = text.lower()
-    if "€" in text or "eur" in text_lower:
-        return "EUR"
-    if "лв" in text_lower or "bgn" in text_lower:
-        return "BGN"
-    return ""
+    """
+    Extract and normalize currency from price text.
+
+    Args:
+        text: Price text containing currency symbol
+
+    Returns:
+        Normalized currency string (EUR or BGN)
+    """
+    result = normalize_currency(text)
+    return result.value if isinstance(result, Currency) else result
 
 
 def is_without_dds(text: str) -> bool:
+    """
+    Check if price is without VAT (ДДС).
+
+    Args:
+        text: Price text that may contain VAT indicator
+
+    Returns:
+        True if price is marked as without VAT
+    """
     return "ддс" in text.lower() if text else False
 
 
 def extract_city(location: str) -> str:
-    if not location:
-        return ""
-    city = location.split(",")[0].strip()
-    prefixes_to_remove = ["град ", "гр. ", "с. "]
-    for prefix in prefixes_to_remove:
-        city = city.replace(prefix, "")
-    return city.strip()
+    """
+    Extract and normalize city from location string.
+
+    Args:
+        location: Location string like "гр. София, Лозенец"
+
+    Returns:
+        Normalized city name
+    """
+    result = normalize_city(location)
+    return result.value if isinstance(result, City) else result
 
 
-def extract_neighborhood(location: str) -> str:
+def extract_neighborhood(location: str, city: str = "") -> str:
+    """
+    Extract and normalize neighborhood from location string.
+
+    Args:
+        location: Location string like "гр. София, Лозенец"
+        city: Optional city for context-aware normalization
+
+    Returns:
+        Normalized neighborhood name
+    """
     if not location:
         return ""
     parts = location.split(",")
-    return parts[1].strip() if len(parts) > 1 else ""
-
-
-def extract_property_type(text: str) -> str:
-    if not text:
+    neighborhood = parts[1].strip() if len(parts) > 1 else ""
+    if not neighborhood:
         return ""
-    text_lower = text.lower()
-    for pattern, normalized in PROPERTY_TYPE_MAPPING.items():
-        if pattern in text_lower:
-            return normalized
-    return ""
+    result = normalize_neighborhood(neighborhood, city)
+    if hasattr(result, "value"):
+        return result.value
+    return result
 
 
-def extract_offer_type(text: str) -> str:
-    if not text:
-        return ""
-    text_lower = text.lower()
-    if "продава" in text_lower:
-        return "продава"
-    if "наем" in text_lower:
-        return "наем"
-    return ""
+def extract_property_type(text: str, url: str = "") -> str:
+    """
+    Extract and normalize property type from text and/or URL.
+
+    Args:
+        text: Text content (e.g., title) to search
+        url: URL to search for patterns
+
+    Returns:
+        Normalized property type string
+    """
+    result = normalize_property_type(text, url)
+    return result.value if isinstance(result, PropertyType) else result
+
+
+def extract_offer_type(text: str, url: str = "") -> str:
+    """
+    Extract and normalize offer type from text and/or URL.
+
+    Args:
+        text: Text content (e.g., title) to search
+        url: URL to search for patterns
+
+    Returns:
+        Normalized offer type string (продава or наем)
+    """
+    result = normalize_offer_type(text, url)
+    return result.value if isinstance(result, OfferType) else result
+
+
+def extract_agency(text: str) -> str:
+    """
+    Extract and normalize agency name.
+
+    Args:
+        text: Agency name text
+
+    Returns:
+        Normalized agency name
+    """
+    return normalize_agency(text)
 
 
 def to_int_safe(text: str) -> int:
+    """
+    Safely convert text to integer.
+
+    Args:
+        text: Text containing a number
+
+    Returns:
+        Extracted integer, or 0 if parsing fails
+    """
     if not text:
         return 0
     match = re.search(r"\d+", str(text))
@@ -85,6 +159,15 @@ def to_int_safe(text: str) -> int:
 
 
 def to_float_safe(text: str) -> float:
+    """
+    Safely convert text to float.
+
+    Args:
+        text: Text containing a number
+
+    Returns:
+        Extracted float, or 0.0 if parsing fails
+    """
     if not text:
         return 0.0
     match = re.search(r"[\d.]+", str(text))
@@ -92,6 +175,15 @@ def to_float_safe(text: str) -> float:
 
 
 def to_float_or_zero(value) -> float:
+    """
+    Convert value to float, returning 0.0 on failure.
+
+    Args:
+        value: Value to convert (can be str, int, float)
+
+    Returns:
+        Float value, or 0.0 if conversion fails
+    """
     if not value:
         return 0.0
     if isinstance(value, (int, float)):

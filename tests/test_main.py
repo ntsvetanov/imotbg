@@ -132,7 +132,7 @@ class TestMainIntegration:
 
         mock_run.return_value = pd.DataFrame()
 
-        with patch("sys.argv", ["main.py", "--scraper_name", "all"]):
+        with patch("sys.argv", ["main.py", "scrape", "--scraper_name", "all"]):
             from main import main
 
             main()
@@ -151,7 +151,7 @@ class TestMainIntegration:
 
         mock_run.return_value = pd.DataFrame()
 
-        with patch("sys.argv", ["main.py", "--scraper_name", "ImotBg"]):
+        with patch("sys.argv", ["main.py", "scrape", "--scraper_name", "ImotBg"]):
             from main import main
 
             main()
@@ -169,7 +169,7 @@ class TestMainIntegration:
         mock_parser.build_urls.return_value = []
         mock_get_parser.return_value = mock_parser
 
-        with patch("sys.argv", ["main.py", "--scraper_name", "ImotBg"]):
+        with patch("sys.argv", ["main.py", "scrape", "--scraper_name", "ImotBg"]):
             from main import main
 
             main()
@@ -188,7 +188,7 @@ class TestMainIntegration:
 
         mock_run.return_value = pd.DataFrame()
 
-        with patch("sys.argv", ["main.py", "--scraper_name", "ImotBg", "--result_folder", "custom_results"]):
+        with patch("sys.argv", ["main.py", "scrape", "--scraper_name", "ImotBg", "--result_folder", "custom_results"]):
             from main import main
 
             main()
@@ -199,7 +199,7 @@ class TestMainIntegration:
     def test_main_with_url_bypasses_config(self, mock_scrape):
         mock_scrape.return_value = pd.DataFrame([{"price": 100, "city": "Sofia"}])
 
-        with patch("sys.argv", ["main.py", "--scraper_name", "ImotBg", "--url", "http://direct-url.com"]):
+        with patch("sys.argv", ["main.py", "scrape", "--scraper_name", "ImotBg", "--url", "http://direct-url.com"]):
             from main import main
 
             main()
@@ -207,7 +207,7 @@ class TestMainIntegration:
         mock_scrape.assert_called_once_with("ImotBg", "http://direct-url.com")
 
     def test_main_url_requires_scraper_name(self):
-        with patch("sys.argv", ["main.py", "--url", "http://direct-url.com"]):
+        with patch("sys.argv", ["main.py", "scrape", "--url", "http://direct-url.com"]):
             from main import main
 
             with pytest.raises(SystemExit):

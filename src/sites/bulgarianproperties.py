@@ -3,12 +3,15 @@ import re
 from src.core.parser import BaseParser, Field, SiteConfig
 from src.core.transforms import (
     extract_currency,
+    extract_offer_type,
+    extract_property_type,
     is_without_dds,
     parse_price,
 )
+from src.core.normalization import normalize_city, normalize_neighborhood
 
 
-def extract_city(location: str) -> str:
+def extract_city_from_location(location: str) -> str:
     """Extract city from location string like 'гр. София, Лозенец'"""
     if not location:
         return ""
@@ -19,15 +22,22 @@ def extract_city(location: str) -> str:
     for prefix in prefixes:
         if city.startswith(prefix):
             city = city[len(prefix) :]
-    return city.strip()
+    result = normalize_city(city)
+    return result.value if hasattr(result, "value") else result
 
 
-def extract_neighborhood(location: str) -> str:
+def extract_neighborhood_from_location(location: str) -> str:
     """Extract neighborhood from location string"""
     if not location:
         return ""
     parts = location.split(",")
-    return parts[1].strip() if len(parts) > 1 else ""
+    neighborhood = parts[1].strip() if len(parts) > 1 else ""
+    if not neighborhood:
+        return ""
+    # Get city for context
+    city = extract_city_from_location(location)
+    result = normalize_neighborhood(neighborhood, city)
+    return result.value if hasattr(result, "value") else result
 
 
 def extract_area(size_text: str) -> str:
@@ -43,14 +53,6 @@ def extract_area(size_text: str) -> str:
     if match:
         return match.group(1).replace(",", ".")
     return ""
-
-
-def extract_ref_no(text: str) -> str:
-    """Extract reference number from text"""
-    if not text:
-        return ""
-    match = re.search(r"(?:Ref|№|No)\.?\s*:?\s*(\w+)", text, re.IGNORECASE)
-    return match.group(1) if match else ""
 
 
 def extract_ref_no_from_url(url: str) -> str:
@@ -93,44 +95,6 @@ def extract_floor(size_text: str) -> str:
     return ""
 
 
-def extract_offer_type_from_url(url: str) -> str:
-    """Extract offer type from URL - more reliable than title."""
-    if not url:
-        return ""
-    url_lower = url.lower()
-    if "pod-naem" in url_lower or "-naem-" in url_lower:
-        return "наем"
-    if "prodava" in url_lower or "prodazhba" in url_lower:
-        return "продава"
-    return ""
-
-
-def extract_property_type_from_url(url: str) -> str:
-    """Extract property type from URL - more reliable than title."""
-    if not url:
-        return ""
-    url_lower = url.lower()
-    # Map URL patterns to normalized property types
-    # Note: URLs use plural forms like "dvustayni-apartamenti" or singular like "dvustaen"
-    url_patterns = {
-        "ednostayn": "едностаен",
-        "ednostaen": "едностаен",
-        "dvustayn": "двустаен",
-        "dvustaen": "двустаен",
-        "tristayn": "тристаен",
-        "tristaen": "тристаен",
-        "chetiristayn": "четиристаен",
-        "chetiristaen": "четиристаен",
-        "mnogostayn": "многостаен",
-        "mnogostaen": "многостаен",
-        "mezonet": "мезонет",
-    }
-    for pattern, normalized in url_patterns.items():
-        if pattern in url_lower:
-            return normalized
-    return ""
-
-
 class BulgarianPropertiesParser(BaseParser):
     config = SiteConfig(
         name="bulgarianproperties",
@@ -143,11 +107,12 @@ class BulgarianPropertiesParser(BaseParser):
         price = Field("price_text", parse_price)
         currency = Field("price_text", extract_currency)
         without_dds = Field("price_text", is_without_dds)
-        city = Field("location", extract_city)
-        neighborhood = Field("location", extract_neighborhood)
+        city = Field("location", extract_city_from_location)
+        neighborhood = Field("location", extract_neighborhood_from_location)
         raw_title = Field("title")
-        property_type = Field("details_url", extract_property_type_from_url)
-        offer_type = Field("details_url", extract_offer_type_from_url)
+        # Use URL for property_type and offer_type extraction (more reliable)
+        property_type = Field("details_url", lambda url: extract_property_type("", url))
+        offer_type = Field("details_url", lambda url: extract_offer_type("", url))
         raw_description = Field("description")
         details_url = Field("details_url", prepend_url=True)
         area = Field("size_text", extract_area)
