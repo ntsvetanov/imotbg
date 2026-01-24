@@ -4,6 +4,7 @@ from typing import Protocol
 
 import pandas as pd
 
+from src.core.reprocessor import reprocess_raw_data
 from src.core.scraper import GenericScraper
 from src.logger_setup import get_logger
 from src.sites import SITE_PARSERS, get_parser
@@ -80,21 +81,73 @@ def load_url_config() -> dict:
 
 def main() -> None:
     arg_parser = argparse.ArgumentParser(description="Scrape real estate listings")
-    arg_parser.add_argument("--scraper_name", default="all", help="Site name or 'all'")
-    arg_parser.add_argument("--result_folder", default="results", help="Output folder")
-    arg_parser.add_argument("--url", help="Single URL to scrape (bypasses config, prints to console)")
-    arg_parser.add_argument("--save", action="store_true", help="Save results to file when using --url")
+    subparsers = arg_parser.add_subparsers(dest="command", help="Available commands")
+
+    # Scrape command (default behavior)
+    scrape_parser = subparsers.add_parser("scrape", help="Scrape listings from sites")
+    scrape_parser.add_argument("--scraper_name", default="all", help="Site name or 'all'")
+    scrape_parser.add_argument("--result_folder", default="results", help="Output folder")
+    scrape_parser.add_argument("--url", help="Single URL to scrape (bypasses config, prints to console)")
+    scrape_parser.add_argument("--save", action="store_true", help="Save results to file when using --url")
+
+    # Reprocess command
+    reprocess_parser = subparsers.add_parser("reprocess", help="Reprocess raw data with current transforms")
+    reprocess_parser.add_argument("--site", required=True, help="Site name (e.g., Suprimmo, ImotBg)")
+    reprocess_parser.add_argument("--folder", help="Folder to reprocess (e.g., plovdiv/apartments)")
+    reprocess_parser.add_argument("--file", help="Single raw CSV file to reprocess")
+    reprocess_parser.add_argument(
+        "--output",
+        choices=["overwrite", "new"],
+        default="overwrite",
+        help="Output mode: 'overwrite' existing or create 'new' timestamped files",
+    )
+    reprocess_parser.add_argument("--result_folder", default="results", help="Base results folder")
+
     args = arg_parser.parse_args()
 
-    if args.url:
-        if args.scraper_name == "all":
+    # Handle reprocess command
+    if args.command == "reprocess":
+        path = args.file or args.folder
+        results = reprocess_raw_data(
+            site=args.site,
+            path=path,
+            output_mode=args.output,
+            base_path=args.result_folder,
+        )
+        if results:
+            logger.info(f"[{args.site}] Reprocessed {len(results)} files")
+        else:
+            logger.warning(f"[{args.site}] No files were reprocessed")
+        return
+
+    # Handle scrape command (or no command for backward compatibility)
+    if args.command == "scrape":
+        scraper_name = args.scraper_name
+        result_folder = args.result_folder
+        url = args.url
+        save = args.save
+    else:
+        # Backward compatibility: no subcommand means scrape with old args
+        arg_parser_compat = argparse.ArgumentParser(description="Scrape real estate listings")
+        arg_parser_compat.add_argument("--scraper_name", default="all", help="Site name or 'all'")
+        arg_parser_compat.add_argument("--result_folder", default="results", help="Output folder")
+        arg_parser_compat.add_argument("--url", help="Single URL to scrape (bypasses config, prints to console)")
+        arg_parser_compat.add_argument("--save", action="store_true", help="Save results to file when using --url")
+        args = arg_parser_compat.parse_args()
+        scraper_name = args.scraper_name
+        result_folder = args.result_folder
+        url = args.url
+        save = args.save
+
+    if url:
+        if scraper_name == "all":
             arg_parser.error("--scraper_name is required when using --url")
 
-        if args.save:
-            result_df = run_site_scraper(args.scraper_name, [{"url": args.url}], args.result_folder)
-            logger.info(f"[{args.scraper_name}] Completed with {len(result_df)} total listings")
+        if save:
+            result_df = run_site_scraper(scraper_name, [{"url": url}], result_folder)
+            logger.info(f"[{scraper_name}] Completed with {len(result_df)} total listings")
         else:
-            df = scrape_single_url(args.scraper_name, args.url)
+            df = scrape_single_url(scraper_name, url)
             if df.empty:
                 print("No listings found.")
             else:
@@ -105,8 +158,8 @@ def main() -> None:
         return
 
     url_config = load_url_config()
-    is_run_all = args.scraper_name == "all"
-    sites_to_run = list(SITE_PARSERS.keys()) if is_run_all else [args.scraper_name]
+    is_run_all = scraper_name == "all"
+    sites_to_run = list(SITE_PARSERS.keys()) if is_run_all else [scraper_name]
 
     for site_name in sites_to_run:
         parser = get_parser(site_name)
@@ -117,7 +170,7 @@ def main() -> None:
             logger.warning(f"No URLs configured for {site_name}")
             continue
 
-        result_df = run_site_scraper(site_name, url_configs, args.result_folder)
+        result_df = run_site_scraper(site_name, url_configs, result_folder)
         logger.info(f"[{site_name}] Completed with {len(result_df)} total listings")
 
 
