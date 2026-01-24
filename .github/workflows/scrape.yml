@@ -20,6 +20,8 @@ jobs:
       fail-fast: false
       matrix:
         scraper:
+          - name: AloBg
+            folder: alobg
           - name: BazarBg
             folder: bazarbg
           - name: BulgarianProperties
