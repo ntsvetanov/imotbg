@@ -1,3 +1,4 @@
+from src.sites.alobg import AloBgParser
 from src.sites.bazarbg import BazarBgParser
 from src.sites.bulgarianproperties import BulgarianPropertiesParser
 from src.sites.homesbg import HomesBgParser
@@ -8,6 +9,7 @@ from src.sites.luximmo import LuximmoParser
 from src.sites.suprimmo import SuprimmoParser
 
 SITE_PARSERS = {
+    "AloBg": AloBgParser,
     "BazarBg": BazarBgParser,
     "BulgarianProperties": BulgarianPropertiesParser,
     "HomesBg": HomesBgParser,

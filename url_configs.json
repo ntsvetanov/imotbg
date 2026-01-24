@@ -1,4 +1,18 @@
 {
+  "AloBg": {
+    "urls": [
+      {
+        "url": "https://www.alo.bg/obiavi/imoti-prodajbi/apartamenti-stai/?region_id=22&location_ids=4342&section_ids=394%2C399%2C424%2C425%2C434%2C443%2C445%2C446%2C459%2C509%2C525%2C537%2C539%2C548%2C557&p[413]=1574,1575,1576,1579",
+        "name": "Sofia Apartments",
+        "folder": "sofia/apartments"
+      },
+      {
+        "url" : "https://www.alo.bg/obiavi/imoti-prodajbi/apartamenti-stai/?region_id=16&location_ids=3333&p[413]=1574%2C1575%2C1576&section_ids=292,298,299,305,307,835,318",
+        "name":"Plovdiv Apartments",
+        "foler": "plovdiv/apartments"
+      }
+    ]
+  },
   "Suprimmo": {
     "urls": [
       {

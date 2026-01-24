@@ -3,12 +3,27 @@ from typing import Optional
 
 import httpx
 
+from src.infrastructure.clients.browser_profiles import get_random_profile
 from src.logger_setup import get_logger
 
 logger = get_logger(__name__)
 
 
 class HttpClient:
+    """
+    HTTP client with browser-like headers and retry logic.
+
+    On initialization, selects a random browser profile (User-Agent, Sec-CH-UA, etc.)
+    to simulate a real browser. The same profile is used for all requests made by
+    this client instance (per-session rotation).
+
+    Args:
+        headers: Optional dict of headers to override profile defaults
+        timeout: Request timeout in seconds (default 30)
+        max_retries: Number of retry attempts on failure (default 3)
+        retry_delay: Base delay between retries in seconds (default 2.0)
+    """
+
     def __init__(
         self,
         headers: Optional[dict] = None,
@@ -16,7 +31,11 @@ class HttpClient:
         max_retries: int = 3,
         retry_delay: float = 2.0,
     ):
-        self.headers = headers
+        # Get a random browser profile for this session
+        browser_profile = get_random_profile()
+        # Custom headers override profile defaults
+        self.headers = {**browser_profile, **(headers or {})}
+        logger.debug(f"Using browser profile: {self.headers.get('User-Agent', 'unknown')[:50]}...")
         self.timeout = httpx.Timeout(timeout, connect=15.0)
         self.max_retries = max_retries
         self.retry_delay = retry_delay
