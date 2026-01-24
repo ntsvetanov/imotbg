@@ -1,16 +1,17 @@
 import re
+
 from bs4 import Comment
 
+from src.core.normalization import normalize_city, normalize_neighborhood
 from src.core.parser import BaseParser, Field, SiteConfig
 from src.core.transforms import (
+    extract_agency,
     extract_currency,
     extract_offer_type,
     extract_property_type,
     is_without_dds,
     parse_price,
-    extract_agency,
 )
-from src.core.normalization import normalize_city, normalize_neighborhood
 
 
 def extract_city_from_location(location: str) -> str:

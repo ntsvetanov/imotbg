@@ -1,36 +1,34 @@
 import re
 
+from src.core.normalization import normalize_city, normalize_neighborhood
 from src.core.parser import BaseParser, Field, SiteConfig
 from src.core.transforms import (
+    enum_value_or_str,
     extract_currency,
     extract_offer_type,
     extract_property_type,
     parse_price,
 )
-from src.core.normalization import normalize_city, normalize_neighborhood
 
 
 def extract_location_city(location: str) -> str:
-    """Extract and normalize city from location like 'гр. Пловдив, Център'"""
+    """Extract and normalize city from location like 'гр. Пловдив, Център'."""
     if not location:
         return ""
     city = location.replace("гр. ", "").split(",")[0].strip()
-    result = normalize_city(city)
-    return result.value if hasattr(result, "value") else result
+    return enum_value_or_str(normalize_city(city))
 
 
 def extract_location_neighborhood(location: str) -> str:
-    """Extract and normalize neighborhood from location like 'гр. Пловдив, Център'"""
+    """Extract and normalize neighborhood from location like 'гр. Пловдив, Център'."""
     if not location:
         return ""
     parts = location.split(", ", 1)
     neighborhood = parts[1].strip() if len(parts) > 1 else ""
     if not neighborhood:
         return ""
-    # Get city for context
     city = extract_location_city(location)
-    result = normalize_neighborhood(neighborhood, city)
-    return result.value if hasattr(result, "value") else result
+    return enum_value_or_str(normalize_neighborhood(neighborhood, city))
 
 
 class BazarBgParser(BaseParser):

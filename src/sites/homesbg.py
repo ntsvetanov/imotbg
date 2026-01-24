@@ -1,18 +1,20 @@
-from src.core.parser import BaseParser, Field, SiteConfig
-from src.core.transforms import extract_property_type, to_float_or_zero
 from src.core.normalization import normalize_city, normalize_neighborhood, normalize_offer_type
+from src.core.parser import BaseParser, Field, SiteConfig
+from src.core.transforms import (
+    enum_value_or_str,
+    extract_property_type,
+    to_float_or_zero,
+)
 
 
 def normalize_city_value(city: str) -> str:
     """Normalize city name using the normalization module."""
-    result = normalize_city(city)
-    return result.value if hasattr(result, "value") else result
+    return enum_value_or_str(normalize_city(city))
 
 
 def normalize_neighborhood_value(neighborhood: str) -> str:
     """Normalize neighborhood name using the normalization module."""
-    result = normalize_neighborhood(neighborhood)
-    return result.value if hasattr(result, "value") else result
+    return enum_value_or_str(normalize_neighborhood(neighborhood))
 
 
 class HomesBgParser(BaseParser):
@@ -49,10 +51,9 @@ class HomesBgParser(BaseParser):
         return city, neighborhood
 
     def _determine_offer_type(self, search_criteria: dict) -> str:
+        """Determine offer type from search criteria."""
         type_id = search_criteria.get("typeId", "")
-        # Use normalization to get consistent value
-        result = normalize_offer_type("", type_id)
-        return result.value if hasattr(result, "value") else result
+        return enum_value_or_str(normalize_offer_type("", type_id))
 
     def extract_listings(self, data: dict):
         search_criteria = data.get("searchCriteria", {})

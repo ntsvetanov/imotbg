@@ -1,5 +1,6 @@
 import re
 
+from src.core.normalization import normalize_city, normalize_neighborhood
 from src.core.parser import BaseParser, Field, SiteConfig
 from src.core.transforms import (
     extract_currency,
@@ -8,7 +9,6 @@ from src.core.transforms import (
     is_without_dds,
     parse_price,
 )
-from src.core.normalization import normalize_city, normalize_neighborhood
 
 
 def extract_city_from_location(location: str) -> str:

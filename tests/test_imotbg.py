@@ -3,12 +3,11 @@ from bs4 import BeautifulSoup
 
 from src.sites.imotbg import (
     ImotBgParser,
-    calculate_price_per_m2,
-    extract_area,
-    extract_floor,
+    _calculate_listing_price_per_m2 as calculate_price_per_m2,
     extract_photo_count,
     extract_ref_from_id,
 )
+from src.core.transforms import extract_area, extract_floor
 
 SAMPLE_LISTING_HTML = """
 <div class="item TOP" id="ida123">

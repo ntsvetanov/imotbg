@@ -2,65 +2,19 @@ import re
 
 from src.core.parser import BaseParser, Field, SiteConfig
 from src.core.transforms import (
+    extract_area,
+    extract_city_with_prefix,
     extract_currency,
+    extract_neighborhood_with_prefix,
     extract_offer_type,
     extract_property_type,
     is_without_dds,
     parse_price,
 )
-from src.core.normalization import normalize_city, normalize_neighborhood
-
-
-def extract_city_from_location(location: str) -> str:
-    """Extract and normalize city from location like 'Виена / кв. Wieden (4)'"""
-    if not location:
-        return ""
-    # Take first part before "/" and clean it
-    parts = location.split("/")
-    city = parts[0].strip()
-    # Remove common prefixes
-    city = re.sub(r"^(?:гр\.|град)\s*", "", city, flags=re.IGNORECASE)
-    city = city.strip()
-    result = normalize_city(city)
-    return result.value if hasattr(result, "value") else result
-
-
-def extract_neighborhood_from_location(location: str) -> str:
-    """Extract and normalize neighborhood from location like 'Виена / кв. Wieden (4)'"""
-    if not location:
-        return ""
-    # Look for "кв." pattern (Cyrillic)
-    match = re.search(r"кв\.\s*([^/\n]+?)(?:\s*\(|$|\s*Област)", location)
-    if match:
-        neighborhood = match.group(1).strip()
-    else:
-        # Fallback: take second part after /
-        parts = location.split("/")
-        if len(parts) > 1:
-            neighborhood = parts[1].strip()
-            # Remove "кв." prefix if present and trailing region info
-            neighborhood = re.sub(r"^кв\.\s*", "", neighborhood)
-            # Remove anything after "Област" or parenthesis
-            neighborhood = re.sub(r"\s*(?:Област|\().*$", "", neighborhood)
-            neighborhood = neighborhood.strip()
-        else:
-            return ""
-
-    city = extract_city_from_location(location)
-    result = normalize_neighborhood(neighborhood, city)
-    return result.value if hasattr(result, "value") else result
-
-
-def extract_area(area_text: str) -> str:
-    """Extract area number from text like '207.43 м²'"""
-    if not area_text:
-        return ""
-    match = re.search(r"(\d+(?:[.,]\d+)?)", area_text)
-    return match.group(1).replace(",", ".") if match else ""
 
 
 def extract_ref_from_url(url: str) -> str:
-    """Extract reference number from URL like 'luksozen-imot-43445-...'"""
+    """Extract reference number from URL like 'luksozen-imot-43445-...'."""
     if not url:
         return ""
     match = re.search(r"imot-(\d+)", url)
@@ -79,8 +33,8 @@ class LuximmoParser(BaseParser):
         price = Field("price_text", parse_price)
         currency = Field("price_text", extract_currency)
         without_dds = Field("price_text", is_without_dds)
-        city = Field("location", extract_city_from_location)
-        neighborhood = Field("location", extract_neighborhood_from_location)
+        city = Field("location", extract_city_with_prefix)
+        neighborhood = Field("location", extract_neighborhood_with_prefix)
         raw_title = Field("title")
         property_type = Field("title", extract_property_type)
         offer_type = Field("offer_type")

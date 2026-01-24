@@ -2,63 +2,41 @@ import re
 
 from src.core.parser import BaseParser, Field, SiteConfig
 from src.core.transforms import (
+    calculate_price_per_m2,
+    extract_agency,
+    extract_area,
     extract_city,
     extract_currency,
+    extract_floor,
     extract_neighborhood,
     extract_offer_type,
     extract_property_type,
     is_without_dds,
     parse_price,
-    extract_agency,
 )
 
 
 def extract_photo_count(text: str) -> int | None:
+    """Extract photo count from text like '5 снимки'."""
     if not text:
         return None
     match = re.search(r"(\d+)\s*снимк", text)
     return int(match.group(1)) if match else None
 
 
-def extract_area(info_text: str) -> str:
-    """Extract area from info text like '56 кв.м, 6-ти ет.'"""
-    if not info_text:
-        return ""
-    match = re.search(r"(\d+(?:[.,]\d+)?)\s*кв\.?\s*м", info_text)
-    return match.group(1).replace(",", ".") if match else ""
-
-
-def extract_floor(info_text: str) -> str:
-    """Extract floor from info text like '6-ти ет. от 8' or 'ет. 3'"""
-    if not info_text:
-        return ""
-    # Match patterns like "6-ти ет.", "ет. 3", "3 ет."
-    match = re.search(r"(\d+)(?:-\w+)?\s*ет\.?|ет\.?\s*(\d+)", info_text)
-    if match:
-        return match.group(1) or match.group(2)
-    return ""
-
-
 def extract_ref_from_id(item_id: str) -> str:
-    """Extract reference number from item id like 'ida123'"""
+    """Extract reference number from item id like 'ida123'."""
     if not item_id:
         return ""
     match = re.search(r"id[a-z]?(\d+)", item_id)
     return match.group(1) if match else ""
 
 
-def calculate_price_per_m2(raw: dict) -> str:
-    """Calculate price per m2 from price_text and info_text"""
-    try:
-        price = parse_price(raw.get("price_text", ""))
-        area_str = extract_area(raw.get("info_text", ""))
-        if price and area_str:
-            area = float(area_str)
-            if area > 0:
-                return str(round(price / area, 2))
-    except (ValueError, TypeError, ZeroDivisionError):
-        pass
-    return ""
+def _calculate_listing_price_per_m2(raw: dict) -> str:
+    """Calculate price per m2 from raw listing data."""
+    price = parse_price(raw.get("price_text", ""))
+    area_str = extract_area(raw.get("info_text", ""))
+    return calculate_price_per_m2(price, area_str)
 
 
 class ImotBgParser(BaseParser):
@@ -151,7 +129,7 @@ class ImotBgParser(BaseParser):
             }
 
             # Calculate price per m2
-            raw["price_per_m2"] = calculate_price_per_m2(raw)
+            raw["price_per_m2"] = _calculate_listing_price_per_m2(raw)
 
             yield raw
 

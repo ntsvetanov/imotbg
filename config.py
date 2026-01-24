@@ -1,15 +1,13 @@
-from typing import Optional
-
 from pydantic_settings import BaseSettings
 
 
 class AppConfig(BaseSettings):
     debug: bool = True
 
-    mailtrap_host: Optional[str] = None
-    mailtrap_sender_email: Optional[str] = None
-    mailtrap_send_to_email: Optional[str] = None
-    mailtrap_token: Optional[str] = None
+    mailtrap_host: str | None = None
+    mailtrap_sender_email: str | None = None
+    mailtrap_send_to_email: str | None = None
+    mailtrap_token: str | None = None
 
     @property
     def is_email_configured(self) -> bool:

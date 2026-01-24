@@ -3,14 +3,16 @@ from bs4 import BeautifulSoup
 
 from src.sites.suprimmo import (
     SuprimmoParser,
-    calculate_price_per_m2,
-    extract_area,
-    extract_city_from_location as extract_city,
-    extract_floor,
-    extract_neighborhood_from_location as extract_neighborhood,
+    _calculate_listing_price_per_m2 as calculate_price_per_m2,
     extract_ref_from_contact_url,
 )
-from src.core.transforms import extract_offer_type
+from src.core.transforms import (
+    extract_area,
+    extract_city_with_prefix as extract_city,
+    extract_floor,
+    extract_neighborhood_with_prefix as extract_neighborhood,
+    extract_offer_type,
+)
 
 SAMPLE_LISTING_HTML = """
 <div class="panel rel shadow offer" data-prop-id="123456">

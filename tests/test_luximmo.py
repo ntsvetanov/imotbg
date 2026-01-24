@@ -1,12 +1,11 @@
 import pytest
 from bs4 import BeautifulSoup
 
-from src.sites.luximmo import (
-    LuximmoParser,
+from src.sites.luximmo import LuximmoParser, extract_ref_from_url
+from src.core.transforms import (
     extract_area,
-    extract_city_from_location as extract_city,
-    extract_neighborhood_from_location as extract_neighborhood,
-    extract_ref_from_url,
+    extract_city_with_prefix as extract_city,
+    extract_neighborhood_with_prefix as extract_neighborhood,
 )
 
 SAMPLE_LISTING_HTML = """

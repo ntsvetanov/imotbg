@@ -7,6 +7,15 @@ enabling consistent data format and duplicate detection.
 
 from enum import Enum
 
+__all__ = [
+    "City",
+    "Currency",
+    "OfferType",
+    "PlovdivNeighborhood",
+    "PropertyType",
+    "SofiaNeighborhood",
+]
+
 
 class OfferType(str, Enum):
     """Type of property offer."""

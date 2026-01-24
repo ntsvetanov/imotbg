@@ -1,27 +1,27 @@
 import re
 
+from src.core.normalization import normalize_city, normalize_neighborhood
 from src.core.parser import BaseParser, Field, SiteConfig
 from src.core.transforms import (
+    enum_value_or_str,
     extract_currency,
     extract_offer_type,
     extract_property_type,
     parse_price,
 )
-from src.core.normalization import normalize_city, normalize_neighborhood
 
 
 def extract_alo_city(location: str) -> str:
-    """Extract and normalize city from location like 'Редута, София' -> 'София'"""
+    """Extract and normalize city from location like 'Редута, София' -> 'София'."""
     if not location:
         return ""
     parts = location.split(", ")
     city = parts[-1].strip() if parts else ""
-    result = normalize_city(city)
-    return result.value if hasattr(result, "value") else result
+    return enum_value_or_str(normalize_city(city))
 
 
 def extract_alo_neighborhood(location: str) -> str:
-    """Extract and normalize neighborhood from location like 'Редута, София' -> 'Редута'"""
+    """Extract and normalize neighborhood from location like 'Редута, София' -> 'Редута'."""
     if not location:
         return ""
     parts = location.split(", ")
@@ -29,8 +29,7 @@ def extract_alo_neighborhood(location: str) -> str:
     if not neighborhood:
         return ""
     city = extract_alo_city(location)
-    result = normalize_neighborhood(neighborhood, city)
-    return result.value if hasattr(result, "value") else result
+    return enum_value_or_str(normalize_neighborhood(neighborhood, city))
 
 
 class AloBgParser(BaseParser):

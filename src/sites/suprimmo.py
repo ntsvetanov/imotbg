@@ -1,76 +1,19 @@
 import re
 
-from src.core.enums import OfferType
 from src.core.parser import BaseParser, Field, SiteConfig
 from src.core.transforms import (
+    calculate_price_per_m2,
+    extract_area,
+    extract_city_with_prefix,
     extract_currency,
+    extract_floor,
+    extract_neighborhood_with_prefix,
     extract_offer_type,
     extract_property_type,
+    is_valid_offer_type,
     is_without_dds,
     parse_price,
 )
-from src.core.normalization import normalize_city, normalize_neighborhood
-
-
-def extract_city_from_location(location: str) -> str:
-    """Extract city from location like 'гр. София / кв. Лозенец' or 'с. Панчарево'"""
-    if not location:
-        return ""
-    # Remove HTML entities and clean up
-    location = location.replace("\xa0", " ").replace("&nbsp;", " ")
-    # Look for "гр. X" or "с. X" pattern
-    match = re.search(r"(?:гр\.|с\.)\s*([\w\s-]+?)(?:\s*/|<br|$)", location, re.IGNORECASE)
-    if match:
-        city = match.group(1).strip()
-    else:
-        # Try to get first part before /
-        parts = location.split("/")
-        city = parts[0].strip() if parts else ""
-        # Remove prefixes
-        city = re.sub(r"^(?:гр\.|с\.)\s*", "", city)
-
-    result = normalize_city(city)
-    return result.value if hasattr(result, "value") else result
-
-
-def extract_neighborhood_from_location(location: str) -> str:
-    """Extract neighborhood from location like 'гр. София / кв. Лозенец'"""
-    if not location:
-        return ""
-    location = location.replace("\xa0", " ").replace("&nbsp;", " ")
-    # Look for "кв. X" pattern
-    match = re.search(r"кв\.\s*([\w\s-]+)", location, re.IGNORECASE)
-    if match:
-        neighborhood = match.group(1).strip()
-    else:
-        # Try second part after /
-        parts = location.split("/")
-        if len(parts) > 1:
-            neighborhood = parts[1].strip()
-            neighborhood = re.sub(r"^кв\.\s*", "", neighborhood)
-        else:
-            return ""
-
-    # Get city for context-aware normalization
-    city = extract_city_from_location(location)
-    result = normalize_neighborhood(neighborhood, city)
-    return result.value if hasattr(result, "value") else result
-
-
-def extract_area(area_text: str) -> str:
-    """Extract area from text like 'Площ: 251.01 м²'"""
-    if not area_text:
-        return ""
-    match = re.search(r"(\d+(?:[.,]\d+)?)\s*м", area_text)
-    return match.group(1).replace(",", ".") if match else ""
-
-
-def extract_floor(floor_text: str) -> str:
-    """Extract floor from text like 'Етаж: 3' or 'Етаж: партер'"""
-    if not floor_text:
-        return ""
-    match = re.search(r"Етаж:\s*(\d+|партер|последен)", floor_text, re.IGNORECASE)
-    return match.group(1) if match else ""
 
 
 def extract_ref_from_contact_url(url: str) -> str:
@@ -81,18 +24,11 @@ def extract_ref_from_contact_url(url: str) -> str:
     return match.group(1).strip() if match else ""
 
 
-def calculate_price_per_m2(raw: dict) -> str:
-    """Calculate price per m2 from price_text and details_text"""
-    try:
-        price = parse_price(raw.get("price_text", ""))
-        area_str = extract_area(raw.get("details_text", ""))
-        if price and area_str:
-            area = float(area_str)
-            if area > 0:
-                return str(round(price / area, 2))
-    except (ValueError, TypeError, ZeroDivisionError):
-        pass
-    return ""
+def _calculate_listing_price_per_m2(raw: dict) -> str:
+    """Calculate price per m2 from raw listing data."""
+    price = parse_price(raw.get("price_text", ""))
+    area_str = extract_area(raw.get("details_text", ""))
+    return calculate_price_per_m2(price, area_str)
 
 
 class SuprimmoParser(BaseParser):
@@ -107,8 +43,8 @@ class SuprimmoParser(BaseParser):
         price = Field("price_text", parse_price)
         currency = Field("price_text", extract_currency)
         without_dds = Field("price_text", is_without_dds)
-        city = Field("location", extract_city_from_location)
-        neighborhood = Field("location", extract_neighborhood_from_location)
+        city = Field("location", extract_city_with_prefix)
+        neighborhood = Field("location", extract_neighborhood_with_prefix)
         raw_title = Field("title")
         property_type = Field("title", extract_property_type)
         offer_type = Field("offer_type")
@@ -206,8 +142,7 @@ class SuprimmoParser(BaseParser):
 
             # Determine offer type from URL first, then fall back to page context
             offer_type = extract_offer_type("", details_url)
-            # If offer_type is not a known value (продава or наем), use default
-            if offer_type not in (OfferType.SALE.value, OfferType.RENT.value):
+            if not is_valid_offer_type(offer_type):
                 offer_type = default_offer_type
 
             # Count photos
@@ -230,7 +165,7 @@ class SuprimmoParser(BaseParser):
             }
 
             # Calculate price per m2
-            raw["price_per_m2"] = calculate_price_per_m2(raw)
+            raw["price_per_m2"] = _calculate_listing_price_per_m2(raw)
 
             yield raw
 
