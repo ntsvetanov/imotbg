@@ -72,7 +72,7 @@ jobs:
           MAILTRAP_SENDER_EMAIL: ${{ vars.MAILTRAP_SENDER_EMAIL }}
           MAILTRAP_SEND_TO_EMAIL: ${{ secrets.MAILTRAP_SEND_TO_EMAIL }}
           MAILTRAP_TOKEN: ${{ secrets.MAILTRAP_TOKEN }}
-        run: python main.py --scraper_name "${{ matrix.scraper.name }}" --result_folder results
+        run: python main.py scrape --scraper_name "${{ matrix.scraper.name }}" --result_folder results
 
       - name: Upload results artifact
         uses: actions/upload-artifact@v4
