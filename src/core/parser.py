@@ -6,10 +6,15 @@ from typing import Any, Callable, Iterator
 from bs4 import BeautifulSoup
 
 from src.core.models import ListingData
+from src.logger_setup import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass
 class Field:
+    """Mapping from raw data field to transformed output field."""
+
     source: str
     transform: Callable | None = None
     prepend_url: bool = False
@@ -17,6 +22,8 @@ class Field:
 
 @dataclass
 class SiteConfig:
+    """Configuration for a scraping target site."""
+
     name: str
     base_url: str
     encoding: str = "utf-8"
@@ -27,6 +34,8 @@ class SiteConfig:
 
 
 class BaseParser(ABC):
+    """Abstract base class for site-specific parsers."""
+
     config: SiteConfig
     Fields: type
 
@@ -73,8 +82,20 @@ class BaseParser(ABC):
             return f"https:{path}"
         return f"{self.config.base_url}{path}"
 
+    def _apply_transform(self, field_obj: Field, attr_name: str, raw_value: Any) -> Any:
+        """Apply field transform with proper error handling."""
+        if field_obj.transform is None:
+            return raw_value
+        if raw_value is None:
+            return None
+        try:
+            return field_obj.transform(raw_value)
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.debug(f"[{self.config.name}] Transform failed for field '{attr_name}': {e} (value: {raw_value!r})")
+            return None
+
     def transform_listing(self, raw_listing: dict) -> ListingData:
-        result = {"site": self.config.name}
+        result: dict[str, Any] = {"site": self.config.name}
 
         for attr_name in dir(self.Fields):
             if attr_name.startswith("_"):
@@ -85,22 +106,17 @@ class BaseParser(ABC):
                 continue
 
             raw_value = raw_listing.get(field_obj.source)
-            if field_obj.transform is None:
-                result[attr_name] = raw_value
-            elif raw_value is not None:
-                try:
-                    result[attr_name] = field_obj.transform(raw_value)
-                except Exception:
-                    result[attr_name] = None
+            transformed_value = self._apply_transform(field_obj, attr_name, raw_value)
 
-            if field_obj.prepend_url and result.get(attr_name):
-                result[attr_name] = self._prepend_base_url(result[attr_name])
+            if transformed_value is not None:
+                if field_obj.prepend_url:
+                    transformed_value = self._prepend_base_url(transformed_value)
+                result[attr_name] = transformed_value
 
-        # Map scraped_at to date_time_added if present
-        if "scraped_at" in raw_listing and raw_listing["scraped_at"]:
+        if raw_listing.get("scraped_at"):
             try:
                 result["date_time_added"] = datetime.fromisoformat(raw_listing["scraped_at"])
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as e:
+                logger.debug(f"[{self.config.name}] Failed to parse scraped_at: {e}")
 
         return ListingData(**result)

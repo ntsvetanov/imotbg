@@ -1,6 +1,6 @@
 import argparse
 import json
-from typing import Optional
+from typing import Protocol
 
 import pandas as pd
 
@@ -16,6 +16,12 @@ pd.set_option("display.width", None)
 pd.set_option("display.max_colwidth", 50)
 
 
+class EmailSender(Protocol):
+    """Protocol for email sending capability."""
+
+    def send_email(self, subject: str, text: str) -> None: ...
+
+
 def scrape_single_url(site_name: str, url: str) -> pd.DataFrame:
     parser = get_parser(site_name)
     scraper = GenericScraper(parser, "")
@@ -28,13 +34,13 @@ def run_site_scraper(
     site_name: str,
     url_configs: list[dict],
     result_folder: str,
-    email_client: Optional[object] = None,
+    email_client: EmailSender | None = None,
 ) -> pd.DataFrame:
     parser = get_parser(site_name)
     scraper = GenericScraper(parser, result_folder)
 
-    all_processed = []
-    failed_urls = []
+    all_processed: list[pd.DataFrame] = []
+    failed_urls: list[str] = []
 
     for url_index, url_config in enumerate(url_configs):
         url = url_config["url"]
@@ -57,7 +63,7 @@ def run_site_scraper(
     if failed_urls and email_client:
         email_client.send_email(
             subject=f"No data for {site_name} - {get_now_for_filename()}",
-            text=f"Failed URLs:\n" + "\n".join(failed_urls),
+            text="Failed URLs:\n" + "\n".join(failed_urls),
         )
 
     if not all_processed:
@@ -72,7 +78,7 @@ def load_url_config() -> dict:
         return json.load(f)
 
 
-def main():
+def main() -> None:
     arg_parser = argparse.ArgumentParser(description="Scrape real estate listings")
     arg_parser.add_argument("--scraper_name", default="all", help="Site name or 'all'")
     arg_parser.add_argument("--result_folder", default="results", help="Output folder")

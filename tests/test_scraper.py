@@ -1,9 +1,10 @@
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-import pandas as pd
+from unittest.mock import patch
 
-from src.core.scraper import GenericScraper
+import pandas as pd
+import pytest
+
 from src.core.parser import BaseParser, Field, SiteConfig
+from src.core.scraper import GenericScraper
 
 
 class MockParser(BaseParser):

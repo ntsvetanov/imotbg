@@ -3,12 +3,11 @@ from bs4 import BeautifulSoup
 
 from src.sites.bulgarianproperties import (
     BulgarianPropertiesParser,
+    extract_area,
     extract_city,
     extract_neighborhood,
-    extract_area,
     extract_ref_no,
 )
-
 
 SAMPLE_LISTING_HTML = """
 <div class="component-property-item">

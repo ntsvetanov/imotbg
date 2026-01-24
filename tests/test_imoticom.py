@@ -8,7 +8,6 @@ from src.sites.imoticom import (
     extract_neighborhood,
 )
 
-
 SAMPLE_LISTING_HTML = """
 <div class="item">
     <div class="title" style="line-height: 24px;">
@@ -84,34 +83,34 @@ class TestExtractHelpers:
         assert extract_city("град София") == "град София"
 
     def test_extract_city_empty(self):
-        assert extract_city("") is None
+        assert extract_city("") == ""
 
     def test_extract_city_none(self):
-        assert extract_city(None) is None
+        assert extract_city(None) == ""
 
     def test_extract_neighborhood(self):
         assert extract_neighborhood("град София, Белите брези") == "Белите брези"
 
     def test_extract_neighborhood_no_comma(self):
-        assert extract_neighborhood("град София") is None
+        assert extract_neighborhood("град София") == ""
 
     def test_extract_neighborhood_empty(self):
-        assert extract_neighborhood("") is None
+        assert extract_neighborhood("") == ""
 
     def test_extract_neighborhood_none(self):
-        assert extract_neighborhood(None) is None
+        assert extract_neighborhood(None) == ""
 
     def test_extract_area(self):
         assert extract_area("град София, Белите брези\n56 кв.м") == "56 кв.м"
 
     def test_extract_area_no_area(self):
-        assert extract_area("град София, Белите брези") is None
+        assert extract_area("град София, Белите брези") == ""
 
     def test_extract_area_empty(self):
-        assert extract_area("") is None
+        assert extract_area("") == ""
 
     def test_extract_area_none(self):
-        assert extract_area(None) is None
+        assert extract_area(None) == ""
 
 
 class TestImotiComParserConfig:
@@ -412,8 +411,8 @@ class TestImotiComParserEdgeCases:
         result = parser.transform_listing(raw)
         assert result.price == 0.0
         assert result.currency == ""
-        assert result.city is None
-        assert result.neighborhood is None
+        assert result.city == ""
+        assert result.neighborhood == ""
 
     def test_transform_listing_rent_offer(self, parser):
         raw = {

@@ -2,8 +2,8 @@ import pytest
 
 from src.infrastructure.clients.browser_profiles import (
     BROWSER_PROFILES,
-    get_random_profile,
     get_profile_by_browser,
+    get_random_profile,
 )
 
 

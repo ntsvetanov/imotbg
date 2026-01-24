@@ -1,4 +1,3 @@
-import pytest
 
 from src.core.transforms import (
     extract_city,

@@ -3,12 +3,11 @@ from bs4 import BeautifulSoup
 
 from src.sites.luximmo import (
     LuximmoParser,
+    extract_area,
     extract_city,
     extract_neighborhood,
-    extract_area,
     extract_ref_from_url,
 )
-
 
 SAMPLE_LISTING_HTML = """
 <div class="card mb-4">

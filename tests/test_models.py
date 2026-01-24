@@ -1,4 +1,3 @@
-import pytest
 from datetime import datetime
 
 from src.core.models import ListingData
@@ -73,11 +72,15 @@ class TestListingDataWithValues:
 
 
 class TestListingDataValidation:
-    def test_accepts_none_values(self):
-        listing = ListingData(raw_title=None, price=None)
+    def test_accepts_empty_string_defaults(self):
+        listing = ListingData(raw_title="", price=0.0)
 
-        assert listing.raw_title is None
-        assert listing.price is None
+        assert listing.raw_title == ""
+        assert listing.price == 0.0
+
+    def test_date_time_added_accepts_none(self):
+        listing = ListingData(date_time_added=None)
+        assert listing.date_time_added is None
 
     def test_model_dump(self):
         listing = ListingData(raw_title="Test", price=100.0)

@@ -3,7 +3,6 @@ from bs4 import BeautifulSoup
 
 from src.sites.imotinet import ImotiNetParser
 
-
 SAMPLE_LISTING_HTML = """
 <li class="clearfix">
     <a class="box-link" href="/bg/obiavi/prodava/apartament/123"></a>

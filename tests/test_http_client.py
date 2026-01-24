@@ -1,9 +1,10 @@
-import pytest
-from unittest.mock import patch, MagicMock
-import httpx
+from unittest.mock import MagicMock, patch
 
-from src.infrastructure.clients.http_client import HttpClient
+import httpx
+import pytest
+
 from src.infrastructure.clients.browser_profiles import BROWSER_PROFILES
+from src.infrastructure.clients.http_client import HttpClient
 
 
 class TestHttpClientInit:

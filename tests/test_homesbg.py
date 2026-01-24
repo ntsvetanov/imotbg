@@ -2,7 +2,6 @@ import pytest
 
 from src.sites.homesbg import HomesBgParser
 
-
 SAMPLE_API_RESPONSE = {
     "searchCriteria": {"typeId": "ApartmentSell"},
     "hasMoreItems": True,

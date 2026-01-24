@@ -2,8 +2,8 @@ from src.sites.alobg import AloBgParser
 from src.sites.bazarbg import BazarBgParser
 from src.sites.bulgarianproperties import BulgarianPropertiesParser
 from src.sites.homesbg import HomesBgParser
-from src.sites.imoticom import ImotiComParser
 from src.sites.imotbg import ImotBgParser
+from src.sites.imoticom import ImotiComParser
 from src.sites.imotinet import ImotiNetParser
 from src.sites.luximmo import LuximmoParser
 from src.sites.suprimmo import SuprimmoParser

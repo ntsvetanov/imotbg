@@ -1,11 +1,12 @@
 import json
 import tempfile
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
 
 from main import load_url_config, run_site_scraper
+from src.sites import SITE_PARSERS
 
 
 class TestRunSiteScraper:
@@ -136,7 +137,7 @@ class TestMainIntegration:
 
             main()
 
-        assert mock_run.call_count == 9
+        assert mock_run.call_count == len(SITE_PARSERS)
 
     @patch("main.load_url_config")
     @patch("main.get_parser")

@@ -10,25 +10,25 @@ from src.core.transforms import (
 )
 
 
-def extract_city(location: str) -> str | None:
+def extract_city(location: str) -> str:
     if not location:
-        return None
+        return ""
     parts = location.split(",")
-    return parts[0].strip() if parts else None
+    return parts[0].strip() if parts else ""
 
 
-def extract_neighborhood(location: str) -> str | None:
+def extract_neighborhood(location: str) -> str:
     if not location:
-        return None
+        return ""
     parts = location.split(",")
-    return parts[1].strip() if len(parts) > 1 else None
+    return parts[1].strip() if len(parts) > 1 else ""
 
 
-def extract_area(location_info: str) -> str | None:
+def extract_area(location_info: str) -> str:
     if not location_info:
-        return None
+        return ""
     match = re.search(r"(\d+)\s*кв\.м", location_info)
-    return f"{match.group(1)} кв.м" if match else None
+    return f"{match.group(1)} кв.м" if match else ""
 
 
 class ImotiComParser(BaseParser):

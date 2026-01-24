@@ -1,6 +1,7 @@
-import pytest
-from unittest.mock import patch, MagicMock
 import sys
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 class TestEmailClientInit:
@@ -48,7 +49,6 @@ class TestEmailClientInit:
                 if "src.infrastructure.clients.email_client" in sys.modules:
                     del sys.modules["src.infrastructure.clients.email_client"]
 
-                from src.infrastructure.clients.email_client import EmailClient
 
                 EmailClient()
                 mock_mt.MailtrapClient.assert_called_with(token="test-token-123")

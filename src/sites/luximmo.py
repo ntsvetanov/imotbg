@@ -3,7 +3,6 @@ import re
 from src.core.parser import BaseParser, Field, SiteConfig
 from src.core.transforms import (
     extract_currency,
-    extract_offer_type,
     extract_property_type,
     is_without_dds,
     parse_price,

@@ -1,5 +1,5 @@
 import time
-from typing import Optional
+from typing import Callable, TypeVar
 
 import httpx
 
@@ -7,6 +7,10 @@ from src.infrastructure.clients.browser_profiles import get_random_profile
 from src.logger_setup import get_logger
 
 logger = get_logger(__name__)
+
+T = TypeVar("T")
+
+RETRYABLE_STATUS_CODES = {500, 502, 503, 504}
 
 
 class HttpClient:
@@ -17,32 +21,37 @@ class HttpClient:
     to simulate a real browser. The same profile is used for all requests made by
     this client instance (per-session rotation).
 
-    Args:
-        headers: Optional dict of headers to override profile defaults
-        timeout: Request timeout in seconds (default 30)
-        max_retries: Number of retry attempts on failure (default 3)
-        retry_delay: Base delay between retries in seconds (default 2.0)
+    Retries on:
+    - Network errors (timeouts, connection failures)
+    - Server errors (5xx status codes)
     """
 
     def __init__(
         self,
-        headers: Optional[dict] = None,
+        headers: dict | None = None,
         timeout: int = 30,
         max_retries: int = 3,
         retry_delay: float = 2.0,
     ):
-        # Get a random browser profile for this session
         browser_profile = get_random_profile()
-        # Custom headers override profile defaults
         self.headers = {**browser_profile, **(headers or {})}
         logger.debug(f"Using browser profile: {self.headers.get('User-Agent', 'unknown')[:50]}...")
         self.timeout = httpx.Timeout(timeout, connect=15.0)
         self.max_retries = max_retries
         self.retry_delay = retry_delay
 
+    def _is_retryable_status(self, status_code: int) -> bool:
+        return status_code in RETRYABLE_STATUS_CODES
+
     def _handle_retry(self, url: str, error: Exception, attempt: int) -> None:
         is_last_attempt = attempt >= self.max_retries - 1
-        error_type = "Timeout" if isinstance(error, httpx.TimeoutException) else "Request error"
+
+        if isinstance(error, httpx.TimeoutException):
+            error_type = "Timeout"
+        elif isinstance(error, httpx.HTTPStatusError):
+            error_type = f"HTTP {error.response.status_code}"
+        else:
+            error_type = "Request error"
 
         if is_last_attempt:
             logger.error(f"{error_type} fetching {url} after {self.max_retries} attempts: {error}", exc_info=True)
@@ -54,8 +63,8 @@ class HttpClient:
         )
         time.sleep(wait_time)
 
-    def _request_with_retry(self, url: str, parse_response):
-        last_exception = None
+    def _request_with_retry(self, url: str, parse_response: Callable[[httpx.Response], T]) -> T:
+        last_exception: Exception | None = None
 
         for attempt in range(self.max_retries):
             try:
@@ -74,24 +83,23 @@ class HttpClient:
                 self._handle_retry(url, e, attempt)
 
             except httpx.HTTPStatusError as e:
-                logger.error(f"HTTP error fetching {url}: {e}", exc_info=True)
-                raise
+                if self._is_retryable_status(e.response.status_code):
+                    last_exception = e
+                    self._handle_retry(url, e, attempt)
+                else:
+                    logger.error(f"HTTP error fetching {url}: {e}")
+                    raise
 
-        raise last_exception
+        if last_exception:
+            raise last_exception
+        raise RuntimeError(f"Unexpected state: no response and no exception for {url}")
 
-    def fetch(
-        self,
-        url: str,
-        encoding: str,
-    ) -> str:
-        def parse_response(response):
+    def fetch(self, url: str, encoding: str) -> str:
+        def parse_response(response: httpx.Response) -> str:
             response.encoding = encoding
             return response.text
 
         return self._request_with_retry(url, parse_response)
 
-    def fetch_json(
-        self,
-        url: str,
-    ) -> dict:
+    def fetch_json(self, url: str) -> dict:
         return self._request_with_retry(url, lambda r: r.json())

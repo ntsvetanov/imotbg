@@ -3,7 +3,6 @@ from bs4 import BeautifulSoup
 
 from src.sites.imotbg import ImotBgParser, extract_photo_count
 
-
 SAMPLE_LISTING_HTML = """
 <div class="item TOP" id="ida123">
     <div class="photo">
@@ -323,7 +322,7 @@ class TestImotBgParserEdgeCases:
 
         assert result.price == 250000.0
         assert result.currency == "BGN"
-        assert result.num_photos is None
+        assert result.num_photos == 0
 
     def test_transform_listing_rent(self, parser):
         raw = {

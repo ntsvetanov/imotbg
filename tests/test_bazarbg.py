@@ -7,7 +7,6 @@ from src.sites.bazarbg import (
     extract_location_neighborhood,
 )
 
-
 SAMPLE_LISTING_HTML = """
 <div class="listItemContainer">
     <a class="listItemLink" href="/ad/12345" title="Продава 2-стаен апартамент" data-id="12345">

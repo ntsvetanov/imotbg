@@ -9,7 +9,7 @@
       {
         "url" : "https://www.alo.bg/obiavi/imoti-prodajbi/apartamenti-stai/?region_id=16&location_ids=3333&p[413]=1574%2C1575%2C1576&section_ids=292,298,299,305,307,835,318",
         "name":"Plovdiv Apartments",
-        "foler": "plovdiv/apartments"
+        "folder": "plovdiv/apartments"
       }
     ]
   },

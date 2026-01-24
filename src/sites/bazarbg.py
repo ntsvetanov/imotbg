@@ -4,7 +4,6 @@ from src.core.parser import BaseParser, Field, SiteConfig
 from src.core.transforms import (
     extract_city,
     extract_currency,
-    extract_neighborhood,
     extract_offer_type,
     extract_property_type,
     parse_price,
