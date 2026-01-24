@@ -1,7 +1,14 @@
 import pytest
 from bs4 import BeautifulSoup
 
-from src.sites.imotbg import ImotBgParser, extract_photo_count
+from src.sites.imotbg import (
+    ImotBgParser,
+    calculate_price_per_m2,
+    extract_area,
+    extract_floor,
+    extract_photo_count,
+    extract_ref_from_id,
+)
 
 SAMPLE_LISTING_HTML = """
 <div class="item TOP" id="ida123">
@@ -44,6 +51,7 @@ SAMPLE_LISTING_HTML = """
 SAMPLE_PAGE_HTML = f"""
 <html>
 <body>
+<span class="pageNumbersInfo">Обяви 1-24 от общо 1234</span>
 {SAMPLE_LISTING_HTML}
 <div class="item" id="ida456">
     <div class="text">
@@ -83,6 +91,84 @@ class TestExtractPhotoCount:
 
     def test_extract_photo_count_null(self):
         assert extract_photo_count(None) is None
+
+
+class TestExtractArea:
+    def test_standard_format(self):
+        assert extract_area("56 кв.м, 6-ти ет.") == "56"
+
+    def test_with_decimal(self):
+        assert extract_area("80.5 кв.м") == "80.5"
+
+    def test_with_comma_decimal(self):
+        assert extract_area("80,5 кв.м") == "80.5"
+
+    def test_no_match(self):
+        assert extract_area("No area here") == ""
+
+    def test_empty(self):
+        assert extract_area("") == ""
+
+    def test_none(self):
+        assert extract_area(None) == ""
+
+
+class TestExtractFloor:
+    def test_ordinal_format(self):
+        assert extract_floor("6-ти ет. от 8") == "6"
+
+    def test_prefix_format(self):
+        assert extract_floor("ет. 3") == "3"
+
+    def test_suffix_format(self):
+        assert extract_floor("3 ет.") == "3"
+
+    def test_no_match(self):
+        assert extract_floor("No floor here") == ""
+
+    def test_empty(self):
+        assert extract_floor("") == ""
+
+    def test_none(self):
+        assert extract_floor(None) == ""
+
+
+class TestExtractRefFromId:
+    def test_ida_format(self):
+        assert extract_ref_from_id("ida123") == "123"
+
+    def test_id_format(self):
+        assert extract_ref_from_id("id456") == "456"
+
+    def test_no_match(self):
+        assert extract_ref_from_id("notanid") == ""
+
+    def test_empty(self):
+        assert extract_ref_from_id("") == ""
+
+    def test_none(self):
+        assert extract_ref_from_id(None) == ""
+
+
+class TestCalculatePricePerM2:
+    def test_standard_calculation(self):
+        raw = {"price_text": "179 000 €", "info_text": "56 кв.м, 6-ти ет."}
+        assert calculate_price_per_m2(raw) == "3196.43"
+
+    def test_missing_price(self):
+        raw = {"price_text": "", "info_text": "56 кв.м"}
+        assert calculate_price_per_m2(raw) == ""
+
+    def test_missing_area(self):
+        raw = {"price_text": "179 000 €", "info_text": ""}
+        assert calculate_price_per_m2(raw) == ""
+
+    def test_zero_area(self):
+        raw = {"price_text": "179 000 €", "info_text": "0 кв.м"}
+        assert calculate_price_per_m2(raw) == ""
+
+    def test_empty_raw(self):
+        assert calculate_price_per_m2({}) == ""
 
 
 class TestImotBgParserConfig:
@@ -157,6 +243,25 @@ class TestImotBgParserExtractListings:
         listings = list(parser.extract_listings(soup))
         assert listings[0]["agency_url"] == "//agency.imot.bg"
 
+    def test_extract_listing_ref_no(self, parser, soup):
+        listings = list(parser.extract_listings(soup))
+        assert listings[0]["ref_no"] == "123"
+
+    def test_extract_listing_total_offers(self, parser, soup):
+        listings = list(parser.extract_listings(soup))
+        assert listings[0]["total_offers"] == 1234
+        assert listings[1]["total_offers"] == 1234  # Same for all listings on page
+
+    def test_extract_listing_info_text(self, parser, soup):
+        listings = list(parser.extract_listings(soup))
+        assert "56 кв.м" in listings[0]["info_text"]
+        assert "6-ти ет." in listings[0]["info_text"]
+
+    def test_extract_listing_price_per_m2(self, parser, soup):
+        listings = list(parser.extract_listings(soup))
+        # 179000 / 56 = 3196.43
+        assert listings[0]["price_per_m2"] == "3196.43"
+
 
 class TestImotBgParserTransform:
     @pytest.fixture
@@ -169,11 +274,15 @@ class TestImotBgParserTransform:
             "title": "Продава 2-СТАЕН",
             "location": "град София, Лозенец",
             "description": "Описание, тел.: 0888123456",
+            "info_text": "56 кв.м, 6-ти ет. от 8",
             "details_url": "//www.imot.bg/obiava-123",
             "photos_text": "и 13 снимки",
             "contact_info": "0888123456",
             "agency_name": "Агенция",
             "agency_url": "//agency.imot.bg",
+            "ref_no": "123",
+            "total_offers": 1234,
+            "price_per_m2": "3196.43",
         }
         result = parser.transform_listing(raw)
 
@@ -186,6 +295,11 @@ class TestImotBgParserTransform:
         assert result.offer_type == "продава"
         assert result.num_photos == 13
         assert result.details_url == "https://www.imot.bg/obiava-123"
+        assert result.area == "56"
+        assert result.floor == "6"
+        assert result.ref_no == "123"
+        assert result.total_offers == 1234
+        assert result.price_per_m2 == "3196.43"
 
 
 class TestImotBgParserPagination:
@@ -322,7 +436,7 @@ class TestImotBgParserEdgeCases:
 
         assert result.price == 250000.0
         assert result.currency == "BGN"
-        assert result.num_photos == 0
+        assert result.num_photos is None
 
     def test_transform_listing_rent(self, parser):
         raw = {

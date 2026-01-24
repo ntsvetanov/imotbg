@@ -8,28 +8,28 @@ class TestListingDataDefaults:
         listing = ListingData()
 
         assert listing.raw_title == ""
-        assert listing.raw_description == ""
-        assert listing.price == 0.0
+        assert listing.raw_description is None
+        assert listing.price is None
         assert listing.currency == ""
         assert listing.without_dds is False
         assert listing.offer_type == ""
         assert listing.property_type == ""
         assert listing.city == ""
         assert listing.neighborhood == ""
-        assert listing.contact_info == ""
-        assert listing.agency == ""
-        assert listing.agency_url == ""
+        assert listing.contact_info is None
+        assert listing.agency is None
+        assert listing.agency_url is None
         assert listing.details_url == ""
-        assert listing.num_photos == 0
+        assert listing.num_photos is None
         assert listing.date_time_added is None
-        assert listing.search_url == ""
+        assert listing.search_url is None
         assert listing.site == ""
-        assert listing.total_offers == 0
+        assert listing.total_offers is None
         assert listing.ref_no == ""
         assert listing.time == ""
-        assert listing.price_per_m2 == ""
-        assert listing.area == ""
-        assert listing.floor == ""
+        assert listing.price_per_m2 is None
+        assert listing.area is None
+        assert listing.floor is None
 
 
 class TestListingDataWithValues:

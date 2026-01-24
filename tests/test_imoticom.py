@@ -6,10 +6,13 @@ from src.sites.imoticom import (
     extract_area,
     extract_city,
     extract_neighborhood,
+    extract_ref_from_url,
+    calculate_price_per_m2,
 )
 
 SAMPLE_LISTING_HTML = """
 <div class="item">
+    <!--  10:07 часа от 29.12.2025-->
     <div class="title" style="line-height: 24px;">
         <span class="type">Продава  2-стаен</span>
         <span class="price" style="text-align: right;">179 000 €
@@ -46,22 +49,29 @@ SAMPLE_PAGE_HTML = f"""
 <div class="list">
 {SAMPLE_LISTING_HTML}
 <div class="item">
+    <!--  15:44 часа от днес-->
     <div class="title">
         <span class="type">Продава  3-стаен</span>
         <span class="price">250 000 лв.</span>
     </div>
     <a href="https://www.imoti.com/obiava/123456/prodava-3-staen-grad-plovdiv-centar"></a>
+    <div class="photo">
+        <img src="//photo.jpg"/>
+    </div>
     <div class="info">
         <div class="location">
             град Пловдив, Център<br/>
             85 кв.м
         </div>
-        Описание на имота...
+        Агенция за недвижими имоти Vice Real Estate представя имота...
         <div class="phones">
             тел.: 0877654321
         </div>
     </div>
 </div>
+</div>
+<div>
+    <strong>1</strong> - <strong>20</strong> от общо <strong>2456</strong> обяви<br>
 </div>
 <span class="paging">
     <a href="" class="now">1</a>
@@ -111,6 +121,37 @@ class TestExtractHelpers:
 
     def test_extract_area_none(self):
         assert extract_area(None) == ""
+
+
+class TestExtractRefFromUrl:
+    def test_extract_ref_from_url(self):
+        assert extract_ref_from_url("https://www.imoti.com/obiava/22699838/prodava-2-staen") == "22699838"
+
+    def test_extract_ref_from_url_empty(self):
+        assert extract_ref_from_url("") == ""
+
+    def test_extract_ref_from_url_none(self):
+        assert extract_ref_from_url(None) == ""
+
+    def test_extract_ref_from_url_no_match(self):
+        assert extract_ref_from_url("https://www.imoti.com/search") == ""
+
+
+class TestCalculatePricePerM2:
+    def test_calculate_price_per_m2(self):
+        raw = {"price_text": "179 000 €", "location_info": "град София\n56 кв.м"}
+        assert calculate_price_per_m2(raw) == "3196.43"
+
+    def test_calculate_price_per_m2_no_price(self):
+        raw = {"price_text": "", "location_info": "56 кв.м"}
+        assert calculate_price_per_m2(raw) == ""
+
+    def test_calculate_price_per_m2_no_area(self):
+        raw = {"price_text": "179 000 €", "location_info": ""}
+        assert calculate_price_per_m2(raw) == ""
+
+    def test_calculate_price_per_m2_empty(self):
+        assert calculate_price_per_m2({}) == ""
 
 
 class TestImotiComParserConfig:
@@ -184,6 +225,35 @@ class TestImotiComParserExtractListings:
         listings = list(parser.extract_listings(soup))
         assert "UnitedArts Real Estate" in listings[0]["description"]
 
+    def test_extract_listing_ref_no(self, parser, soup):
+        listings = list(parser.extract_listings(soup))
+        assert listings[0]["ref_no"] == "22699838"
+        assert listings[1]["ref_no"] == "123456"
+
+    def test_extract_listing_time(self, parser, soup):
+        listings = list(parser.extract_listings(soup))
+        assert listings[0]["time"] == "10:07 29.12.2025"
+        assert listings[1]["time"] == "15:44 днес"
+
+    def test_extract_listing_total_offers(self, parser, soup):
+        listings = list(parser.extract_listings(soup))
+        assert listings[0]["total_offers"] == 2456
+        assert listings[1]["total_offers"] == 2456  # Same for all listings on page
+
+    def test_extract_listing_num_photos(self, parser, soup):
+        listings = list(parser.extract_listings(soup))
+        assert listings[0]["num_photos"] == 1
+        assert listings[1]["num_photos"] == 1
+
+    def test_extract_listing_agency_name(self, parser, soup):
+        listings = list(parser.extract_listings(soup))
+        assert "UnitedArts Real Estate" in listings[0]["agency_name"]
+        assert "Vice Real Estate" in listings[1]["agency_name"]
+
+    def test_extract_listing_price_per_m2(self, parser, soup):
+        listings = list(parser.extract_listings(soup))
+        assert listings[0]["price_per_m2"] == "3196.43"
+
     def test_extract_listings_no_list_container(self, parser):
         soup = BeautifulSoup("<html><body></body></html>", "html.parser")
         listings = list(parser.extract_listings(soup))
@@ -204,6 +274,13 @@ class TestImotiComParserTransform:
             "description": "Описание на имота",
             "details_url": "https://www.imoti.com/obiava/123",
             "contact_info": "0888123456",
+            "ref_no": "123",
+            "total_offers": 2456,
+            "time": "10:07 29.12.2025",
+            "num_photos": 1,
+            "agency_name": "Test Agency",
+            "agency_url": "",
+            "price_per_m2": "3196.43",
         }
         result = parser.transform_listing(raw)
 
@@ -227,6 +304,13 @@ class TestImotiComParserTransform:
             "description": "Описание",
             "details_url": "https://www.imoti.com/obiava/456",
             "contact_info": "0877654321",
+            "ref_no": "456",
+            "total_offers": 100,
+            "time": "15:44 днес",
+            "num_photos": 1,
+            "agency_name": "",
+            "agency_url": "",
+            "price_per_m2": "2941.18",
         }
         result = parser.transform_listing(raw)
 
@@ -407,12 +491,21 @@ class TestImotiComParserEdgeCases:
             "description": "",
             "details_url": "",
             "contact_info": "",
+            "ref_no": "",
+            "total_offers": 0,
+            "time": "",
+            "num_photos": 0,
+            "agency_name": "",
+            "agency_url": "",
+            "price_per_m2": "",
         }
         result = parser.transform_listing(raw)
         assert result.price == 0.0
         assert result.currency == ""
         assert result.city == ""
         assert result.neighborhood == ""
+        assert result.ref_no == ""
+        assert result.num_photos == 0
 
     def test_transform_listing_rent_offer(self, parser):
         raw = {
@@ -423,6 +516,13 @@ class TestImotiComParserEdgeCases:
             "description": "Test",
             "details_url": "https://www.imoti.com/obiava/123",
             "contact_info": "",
+            "ref_no": "123",
+            "total_offers": 0,
+            "time": "",
+            "num_photos": 0,
+            "agency_name": "",
+            "agency_url": "",
+            "price_per_m2": "10.0",
         }
         result = parser.transform_listing(raw)
         assert result.offer_type == "наем"

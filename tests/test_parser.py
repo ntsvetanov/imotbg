@@ -147,14 +147,14 @@ class TestTransformListing:
         result = parser.transform_listing(raw)
 
         assert result.raw_title == "Test Title"
-        assert result.price == 0.0  # default from model (no price_text in raw)
+        assert result.price is None  # default from model (no price_text in raw)
 
     def test_transform_listing_transform_error(self, parser):
         raw = {"raw_title": "Test", "price_text": "invalid"}
         result = parser.transform_listing(raw)
 
         assert result.raw_title == "Test"
-        assert result.price == 0.0  # default from model (transform failed)
+        assert result.price is None  # default from model (transform failed)
 
     def test_transform_listing_none_value(self, parser):
         raw = {"raw_title": None, "price_text": "100"}
@@ -276,7 +276,7 @@ class TestBaseParserEdgeCases:
         raw = {}  # Empty dict
         result = parser.transform_listing(raw)
         assert result.raw_title == ""  # default from model
-        assert result.price == 0.0  # default from model
+        assert result.price is None  # default from model
 
     def test_extract_listings_generator(self, parser):
         listings = parser.extract_listings({})

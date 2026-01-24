@@ -276,7 +276,7 @@ class TestHomesBgParserEdgeCases:
             "ref_no": "123",
         }
         result = parser.transform_listing(raw)
-        assert result.price == 0.0
+        assert result.price is None
 
     def test_transform_listing_string_price(self, parser):
         raw = {
