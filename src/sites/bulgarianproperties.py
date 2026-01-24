@@ -3,8 +3,6 @@ import re
 from src.core.parser import BaseParser, Field, SiteConfig
 from src.core.transforms import (
     extract_currency,
-    extract_offer_type,
-    extract_property_type,
     is_without_dds,
     parse_price,
 )
@@ -33,9 +31,14 @@ def extract_neighborhood(location: str) -> str:
 
 
 def extract_area(size_text: str) -> str:
-    """Extract area from text like '85 кв.м.' or '85 m2'"""
+    """Extract area from text like '(7,08€/м2)(13,84лв./м2)Площ: 212.00 м2Етаж: 5'"""
     if not size_text:
         return ""
+    # Look for "Площ: X м2" pattern
+    match = re.search(r"Площ:\s*(\d+(?:[.,]\d+)?)\s*(?:кв\.?м|m2|м2)", size_text, re.IGNORECASE)
+    if match:
+        return match.group(1).replace(",", ".")
+    # Fallback to simpler pattern
     match = re.search(r"(\d+(?:[.,]\d+)?)\s*(?:кв\.?м|m2|м2)", size_text, re.IGNORECASE)
     if match:
         return match.group(1).replace(",", ".")
@@ -48,6 +51,84 @@ def extract_ref_no(text: str) -> str:
         return ""
     match = re.search(r"(?:Ref|№|No)\.?\s*:?\s*(\w+)", text, re.IGNORECASE)
     return match.group(1) if match else ""
+
+
+def extract_ref_no_from_url(url: str) -> str:
+    """Extract reference number from URL like '/imoti-mezoneti/imot-89171-mezonet-pod-naem.html'"""
+    if not url:
+        return ""
+    # Try to match imot-XXXXX pattern
+    match = re.search(r"imot-(\d+)", url, re.IGNORECASE)
+    if match:
+        return match.group(1)
+    # Fallback to /XXXXX.html pattern
+    match = re.search(r"/(\d+)\.html", url)
+    if match:
+        return match.group(1)
+    return ""
+
+
+def extract_price_per_m2(size_text: str) -> str:
+    """Extract price per m2 from text like '(7,08€/м2)(13,84лв./м2)Площ: 212.00 м2'"""
+    if not size_text:
+        return ""
+    # Look for EUR price per m2 first
+    match = re.search(r"\((\d+(?:[.,]\d+)?)\s*€/м2\)", size_text)
+    if match:
+        return match.group(1).replace(",", ".")
+    # Fallback to BGN price per m2
+    match = re.search(r"\((\d+(?:[.,]\d+)?)\s*лв\.?/м2\)", size_text)
+    if match:
+        return match.group(1).replace(",", ".")
+    return ""
+
+
+def extract_floor(size_text: str) -> str:
+    """Extract floor from text like '(7,08€/м2)(13,84лв./м2)Площ: 212.00 м2Етаж: 5'"""
+    if not size_text:
+        return ""
+    match = re.search(r"Етаж:\s*(\d+)", size_text, re.IGNORECASE)
+    if match:
+        return match.group(1)
+    return ""
+
+
+def extract_offer_type_from_url(url: str) -> str:
+    """Extract offer type from URL - more reliable than title."""
+    if not url:
+        return ""
+    url_lower = url.lower()
+    if "pod-naem" in url_lower or "-naem-" in url_lower:
+        return "наем"
+    if "prodava" in url_lower or "prodazhba" in url_lower:
+        return "продава"
+    return ""
+
+
+def extract_property_type_from_url(url: str) -> str:
+    """Extract property type from URL - more reliable than title."""
+    if not url:
+        return ""
+    url_lower = url.lower()
+    # Map URL patterns to normalized property types
+    # Note: URLs use plural forms like "dvustayni-apartamenti" or singular like "dvustaen"
+    url_patterns = {
+        "ednostayn": "едностаен",
+        "ednostaen": "едностаен",
+        "dvustayn": "двустаен",
+        "dvustaen": "двустаен",
+        "tristayn": "тристаен",
+        "tristaen": "тристаен",
+        "chetiristayn": "четиристаен",
+        "chetiristaen": "четиристаен",
+        "mnogostayn": "многостаен",
+        "mnogostaen": "многостаен",
+        "mezonet": "мезонет",
+    }
+    for pattern, normalized in url_patterns.items():
+        if pattern in url_lower:
+            return normalized
+    return ""
 
 
 class BulgarianPropertiesParser(BaseParser):
@@ -65,13 +146,16 @@ class BulgarianPropertiesParser(BaseParser):
         city = Field("location", extract_city)
         neighborhood = Field("location", extract_neighborhood)
         raw_title = Field("title")
-        property_type = Field("title", extract_property_type)
-        offer_type = Field("title", extract_offer_type)
+        property_type = Field("details_url", extract_property_type_from_url)
+        offer_type = Field("details_url", extract_offer_type_from_url)
         raw_description = Field("description")
         details_url = Field("details_url", prepend_url=True)
         area = Field("size_text", extract_area)
-        ref_no = Field("ref_no")
-        agency_name = Field("agency_name")
+        ref_no = Field("details_url", extract_ref_no_from_url)
+        agency = Field("agency_name")
+        search_url = Field("search_url")
+        price_per_m2 = Field("size_text", extract_price_per_m2)
+        floor = Field("size_text", extract_floor)
 
     def extract_listings(self, soup):
         # Find all property items - looking for component-property-item class
