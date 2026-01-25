@@ -8,6 +8,7 @@ from src.sites.imoticom import (
     extract_neighborhood_from_location as extract_neighborhood,
     extract_ref_from_url,
     calculate_price_per_m2,
+    extract_floor,
 )
 
 SAMPLE_LISTING_HTML = """
@@ -30,7 +31,7 @@ SAMPLE_LISTING_HTML = """
     <div class="info">
         <div class="location">
             град София, Белите брези<br/>
-            56 кв.м
+            56 кв.м, ет. 3
         </div>
         6-ти ет., ТЕЦ, UnitedArts Real Estate предлага двустаен апартамент...
         <div class="phones">
@@ -61,7 +62,7 @@ SAMPLE_PAGE_HTML = f"""
     <div class="info">
         <div class="location">
             град Пловдив, Център<br/>
-            85 кв.м
+            85 кв.м, етаж 5
         </div>
         Агенция за недвижими имоти Vice Real Estate представя имота...
         <div class="phones">
@@ -152,6 +153,23 @@ class TestCalculatePricePerM2:
 
     def test_calculate_price_per_m2_empty(self):
         assert calculate_price_per_m2({}) == ""
+
+
+class TestExtractFloor:
+    def test_extract_floor_et(self):
+        assert extract_floor("град София\n56 кв.м, ет. 3") == "3"
+
+    def test_extract_floor_etaj(self):
+        assert extract_floor("град София\n85 кв.м, етаж 5") == "5"
+
+    def test_extract_floor_no_floor(self):
+        assert extract_floor("град София\n56 кв.м") == ""
+
+    def test_extract_floor_empty(self):
+        assert extract_floor("") == ""
+
+    def test_extract_floor_none(self):
+        assert extract_floor(None) == ""
 
 
 class TestImotiComParserConfig:
@@ -270,7 +288,7 @@ class TestImotiComParserTransform:
             "price_text": "179 000 €350 093,57 лв.Не се начислява ДДС",
             "title": "Продава  2-стаен",
             "location": "град София, Белите брези",
-            "location_info": "град София, Белите брези\n56 кв.м",
+            "location_info": "град София, Белите брези\n56 кв.м, ет. 3",
             "description": "Описание на имота",
             "details_url": "https://www.imoti.com/obiava/123",
             "contact_info": "0888123456",
@@ -293,6 +311,7 @@ class TestImotiComParserTransform:
         assert result.property_type == "двустаен"
         assert result.offer_type == "продава"
         assert result.area == "56 кв.м"
+        assert result.floor == "3"
         assert result.details_url == "https://www.imoti.com/obiava/123"
 
     def test_transform_listing_bgn(self, parser):
@@ -320,6 +339,49 @@ class TestImotiComParserTransform:
         assert result.city == "Пловдив"
         assert result.neighborhood == "Център"
         assert result.property_type == "тристаен"
+
+    def test_transform_listing_with_floor(self, parser):
+        raw = {
+            "price_text": "179 000 €",
+            "title": "Продава  2-стаен",
+            "location": "град София, Белите брези",
+            "location_info": "град София, Белите брези\n56 кв.м, етаж 5",
+            "description": "",
+            "details_url": "https://www.imoti.com/obiava/123",
+            "contact_info": "",
+            "ref_no": "123",
+            "total_offers": 0,
+            "time": "",
+            "num_photos": 0,
+            "agency_name": "",
+            "agency_url": "",
+            "price_per_m2": "",
+        }
+        result = parser.transform_listing(raw)
+
+        assert result.floor == "5"
+
+    def test_transform_listing_with_search_url(self, parser):
+        raw = {
+            "price_text": "179 000 €",
+            "title": "Продава  2-стаен",
+            "location": "град София, Белите брези",
+            "location_info": "град София, Белите брези\n56 кв.м, ет. 3",
+            "description": "",
+            "details_url": "https://www.imoti.com/obiava/123",
+            "contact_info": "",
+            "ref_no": "123",
+            "total_offers": 2456,
+            "time": "",
+            "num_photos": 1,
+            "agency_name": "",
+            "agency_url": "",
+            "price_per_m2": "3196.43",
+            "search_url": "https://www.imoti.com/prodazhbi/grad-sofiya/dvustaini",
+        }
+        result = parser.transform_listing(raw)
+
+        assert result.search_url == "https://www.imoti.com/prodazhbi/grad-sofiya/dvustaini"
 
 
 class TestImotiComParserPagination:

@@ -44,6 +44,14 @@ def extract_area(location_info: str) -> str:
     return f"{match.group(1)} кв.м" if match else ""
 
 
+def extract_floor(location_info: str) -> str:
+    """Extract floor from location_info like 'ет. 3' or 'етаж 3'."""
+    if not location_info:
+        return ""
+    match = re.search(r"(?:ет\.|етаж)\s*(\d+)", location_info, re.IGNORECASE)
+    return match.group(1) if match else ""
+
+
 def extract_area_numeric(location_info: str) -> str:
     """Extract numeric area value for price_per_m2 calculation."""
     if not location_info:
@@ -81,7 +89,6 @@ class ImotiComParser(BaseParser):
         encoding="utf-8",
         rate_limit_seconds=1.0,
         use_cloudscraper=True,  # Bypass Cloudflare protection
-
     )
 
     class Fields:
@@ -104,6 +111,8 @@ class ImotiComParser(BaseParser):
         time = Field("time")
         num_photos = Field("num_photos")
         price_per_m2 = Field("price_per_m2")
+        floor = Field("location_info", extract_floor)
+        search_url = Field("search_url")
 
     def _extract_location(self, item) -> str:
         location_div = item.select_one("div.location")

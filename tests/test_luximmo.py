@@ -1,7 +1,11 @@
 import pytest
 from bs4 import BeautifulSoup
 
-from src.sites.luximmo import LuximmoParser, extract_ref_from_url
+from src.sites.luximmo import (
+    LuximmoParser,
+    extract_ref_from_url,
+    _calculate_listing_price_per_m2,
+)
 from src.core.transforms import (
     extract_area,
     extract_city_with_prefix as extract_city,
@@ -17,6 +21,9 @@ SAMPLE_LISTING_HTML = """
         <span class="text-dark">гр. София / кв. Център</span>
     </div>
     <div class="card-dis">Площ: 95.5 м Етаж: 3</div>
+    <div class="carousel-item"><img src="photo1.jpg"/></div>
+    <div class="carousel-item"><img src="photo2.jpg"/></div>
+    <div class="carousel-item"><img src="photo3.jpg"/></div>
 </div>
 """
 
@@ -32,6 +39,7 @@ SAMPLE_PAGE_HTML = f"""
         <span class="text-dark">гр. София / кв. Лозенец</span>
     </div>
     <div class="card-dis">Площ: 65 м Етаж: 5</div>
+    <div class="card-img"><img src="photo1.jpg"/></div>
 </div>
 <ul class="pagination">
     <li><a class="page-link" href="index.html">1</a></li>
@@ -103,6 +111,28 @@ class TestExtractRefFromUrl:
 
     def test_none(self):
         assert extract_ref_from_url(None) == ""
+
+
+class TestCalculatePricePerM2:
+    def test_standard_calculation(self):
+        raw = {"price_text": "185 000 €", "area_text": "100 м"}
+        assert _calculate_listing_price_per_m2(raw) == "1850.0"
+
+    def test_with_decimal_area(self):
+        raw = {"price_text": "185 000 €", "area_text": "95.5 м"}
+        result = float(_calculate_listing_price_per_m2(raw))
+        assert 1937 < result < 1938
+
+    def test_missing_price(self):
+        raw = {"price_text": "", "area_text": "100 м"}
+        assert _calculate_listing_price_per_m2(raw) == ""
+
+    def test_missing_area(self):
+        raw = {"price_text": "185 000 €", "area_text": ""}
+        assert _calculate_listing_price_per_m2(raw) == ""
+
+    def test_empty_raw(self):
+        assert _calculate_listing_price_per_m2({}) == ""
 
 
 class TestLuximmoParserConfig:
@@ -187,6 +217,22 @@ class TestLuximmoParserExtractListings:
         listings = list(parser.extract_listings(soup))
         assert listings[0]["agency_name"] == "Luximmo"
 
+    def test_extract_listing_num_photos(self, parser, soup):
+        listings = list(parser.extract_listings(soup))
+        assert listings[0]["num_photos"] == 3  # 3 carousel items
+        assert listings[1]["num_photos"] == 1  # 1 card-img
+
+    def test_extract_listing_total_offers(self, parser, soup):
+        listings = list(parser.extract_listings(soup))
+        assert listings[0]["total_offers"] == 0  # Default value
+        assert listings[1]["total_offers"] == 0
+
+    def test_extract_listing_price_per_m2(self, parser, soup):
+        listings = list(parser.extract_listings(soup))
+        # First listing: 185000 / 95.5 = 1937.17...
+        price_per_m2 = float(listings[0]["price_per_m2"])
+        assert 1937 < price_per_m2 < 1938
+
 
 class TestLuximmoParserTransform:
     @pytest.fixture
@@ -254,6 +300,49 @@ class TestLuximmoParserTransform:
 
         assert result.offer_type == "наем"
         assert result.property_type == "двустаен"
+
+    def test_transform_listing_with_new_fields(self, parser):
+        raw = {
+            "price_text": "185000 €",
+            "title": "Тристаен апартамент за продажба",
+            "location": "гр. София / кв. Център",
+            "area_text": "95.5 м",
+            "floor": "3",
+            "description": "",
+            "details_url": "https://www.luximmo.bg/za-prodajba/imot-43445.html",
+            "ref_no": "43445",
+            "offer_type": "продава",
+            "agency_name": "Luximmo",
+            "num_photos": 5,
+            "total_offers": 100,
+            "price_per_m2": "1937.17",
+        }
+        result = parser.transform_listing(raw)
+
+        assert result.num_photos == 5
+        assert result.total_offers == 100
+        assert result.price_per_m2 == "1937.17"
+
+    def test_transform_listing_with_search_url(self, parser):
+        raw = {
+            "price_text": "185000 €",
+            "title": "Тристаен апартамент за продажба",
+            "location": "гр. София / кв. Център",
+            "area_text": "95.5 м",
+            "floor": "3",
+            "description": "",
+            "details_url": "https://www.luximmo.bg/za-prodajba/imot-43445.html",
+            "ref_no": "43445",
+            "offer_type": "продава",
+            "agency_name": "Luximmo",
+            "num_photos": 5,
+            "total_offers": 100,
+            "price_per_m2": "1937.17",
+            "search_url": "https://www.luximmo.bg/sofia/apartments/",
+        }
+        result = parser.transform_listing(raw)
+
+        assert result.search_url == "https://www.luximmo.bg/sofia/apartments/"
 
 
 class TestLuximmoParserPagination:

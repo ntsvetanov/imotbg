@@ -58,6 +58,7 @@ class SuprimmoParser(BaseParser):
         num_photos = Field("num_photos")
         total_offers = Field("total_offers")
         price_per_m2 = Field("price_per_m2")
+        search_url = Field("search_url")
 
     def _extract_total_offers(self, soup) -> int:
         """Extract total offers count from page like '1448 намерени оферти'"""

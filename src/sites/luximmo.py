@@ -2,6 +2,7 @@ import re
 
 from src.core.parser import BaseParser, Field, SiteConfig
 from src.core.transforms import (
+    calculate_price_per_m2,
     extract_area,
     extract_city_with_prefix,
     extract_currency,
@@ -19,6 +20,13 @@ def extract_ref_from_url(url: str) -> str:
         return ""
     match = re.search(r"imot-(\d+)", url)
     return match.group(1) if match else ""
+
+
+def _calculate_listing_price_per_m2(raw: dict) -> str:
+    """Calculate price per m2 from raw listing data."""
+    price = parse_price(raw.get("price_text", ""))
+    area_str = extract_area(raw.get("area_text", ""))
+    return calculate_price_per_m2(price, area_str)
 
 
 class LuximmoParser(BaseParser):
@@ -45,6 +53,10 @@ class LuximmoParser(BaseParser):
         ref_no = Field("ref_no")
         floor = Field("floor")
         agency = Field("agency_name")
+        num_photos = Field("num_photos")
+        total_offers = Field("total_offers")
+        price_per_m2 = Field("price_per_m2")
+        search_url = Field("search_url")
 
     def extract_listings(self, soup):
         # Find all property cards
@@ -101,7 +113,11 @@ class LuximmoParser(BaseParser):
             # Determine offer type from URL - use shared normalization
             offer_type = extract_offer_type(title, details_url)
 
-            yield {
+            # Count photos
+            photos = card.select("div.carousel-item, div.card-img img")
+            num_photos = len(photos) if photos else 0
+
+            raw = {
                 "price_text": price_text,
                 "title": title,
                 "location": location,
@@ -112,7 +128,14 @@ class LuximmoParser(BaseParser):
                 "ref_no": ref_no,
                 "offer_type": offer_type,
                 "agency_name": "Luximmo",
+                "num_photos": num_photos,
+                "total_offers": 0,
             }
+
+            # Calculate price per m2
+            raw["price_per_m2"] = _calculate_listing_price_per_m2(raw)
+
+            yield raw
 
     def get_total_pages(self, soup) -> int:
         """Extract total pages from pagination"""

@@ -387,6 +387,26 @@ class TestSuprimmoParserTransform:
         assert result.total_offers == 1448
         assert result.price_per_m2 == "1937.17"
 
+    def test_transform_listing_with_search_url(self, parser):
+        raw = {
+            "price_text": "185 000 €",
+            "title": "Тристаен апартамент",
+            "location": "гр. София / кв. Лозенец",
+            "details_text": "Площ: 95.5 м² Етаж: 3",
+            "description": "",
+            "details_url": "/prodajba-imot-sofia-123456.html",
+            "ref_no": "SOF 109946",
+            "offer_type": "продава",
+            "agency_name": "Suprimmo",
+            "num_photos": 5,
+            "total_offers": 1448,
+            "price_per_m2": "1937.17",
+            "search_url": "https://www.suprimmo.bg/sofia/apartments/",
+        }
+        result = parser.transform_listing(raw)
+
+        assert result.search_url == "https://www.suprimmo.bg/sofia/apartments/"
+
 
 class TestSuprimmoParserPagination:
     @pytest.fixture

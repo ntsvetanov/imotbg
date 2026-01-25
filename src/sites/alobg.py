@@ -3,7 +3,9 @@ import re
 from src.core.normalization import normalize_city, normalize_neighborhood
 from src.core.parser import BaseParser, Field, SiteConfig
 from src.core.transforms import (
+    calculate_price_per_m2,
     enum_value_or_str,
+    extract_area,
     extract_currency,
     extract_offer_type,
     extract_property_type,
@@ -32,6 +34,21 @@ def extract_alo_neighborhood(location: str) -> str:
     return enum_value_or_str(normalize_neighborhood(neighborhood, city))
 
 
+def extract_ref_from_url(url: str) -> str:
+    """Extract reference number from URL like '/obiava/12345-...'."""
+    if not url:
+        return ""
+    match = re.search(r"/obiava/(\d+)", url)
+    return match.group(1) if match else ""
+
+
+def _calculate_listing_price_per_m2(raw: dict) -> str:
+    """Calculate price per m2 from raw listing data."""
+    price = parse_price(raw.get("price_text", ""))
+    area_str = extract_area(raw.get("area_text", ""))
+    return calculate_price_per_m2(price, area_str)
+
+
 class AloBgParser(BaseParser):
     config = SiteConfig(
         name="alobg",
@@ -53,6 +70,11 @@ class AloBgParser(BaseParser):
         details_url = Field("details_url", prepend_url=True)
         raw_description = Field("description")
         agency = Field("agency_name")
+        ref_no = Field("ref_no")
+        num_photos = Field("num_photos")
+        total_offers = Field("total_offers")
+        price_per_m2 = Field("price_per_m2")
+        search_url = Field("search_url")
 
     def _extract_param_value(self, item, param_name: str) -> str:
         """Extract parameter value from listing item by looking for param title."""
@@ -108,7 +130,14 @@ class AloBgParser(BaseParser):
             if spans:
                 agency_name = spans[0].get_text(strip=True)
 
-        return {
+        # Extract reference number from URL
+        ref_no = extract_ref_from_url(href)
+
+        # Count photos
+        photos = item.select("img.listtop-item-photo, img.listvip-item-photo, .gallery img")
+        num_photos = len(photos) if photos else 0
+
+        raw = {
             "title": title,
             "details_url": href,
             "location": location,
@@ -120,13 +149,35 @@ class AloBgParser(BaseParser):
             "floor_text": floor_text,
             "description": description,
             "agency_name": agency_name,
+            "ref_no": ref_no,
+            "num_photos": num_photos,
         }
 
+        # Calculate price per m2
+        raw["price_per_m2"] = _calculate_listing_price_per_m2(raw)
+
+        return raw
+
+    def _extract_total_offers(self, soup) -> int:
+        """Extract total offers count from page."""
+        # Look for count in the results header
+        count_elem = soup.select_one(".search-results-count, .results-count")
+        if count_elem:
+            text = count_elem.get_text(strip=True)
+            match = re.search(r"(\d+)", text.replace(" ", ""))
+            if match:
+                return int(match.group(1))
+        return 0
+
     def extract_listings(self, soup):
+        # Extract total offers from the page (only once per page)
+        total_offers = self._extract_total_offers(soup)
+
         # Extract from both top listings and vip listings
         for item in soup.select("div.listtop-item, div.listvip-item"):
             listing = self._extract_listing(item)
             if listing:
+                listing["total_offers"] = total_offers
                 yield listing
 
     def get_total_pages(self, soup) -> int:

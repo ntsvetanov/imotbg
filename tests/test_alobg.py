@@ -3,7 +3,13 @@
 import pytest
 from bs4 import BeautifulSoup
 
-from src.sites.alobg import AloBgParser, extract_alo_city, extract_alo_neighborhood
+from src.sites.alobg import (
+    AloBgParser,
+    extract_alo_city,
+    extract_alo_neighborhood,
+    extract_ref_from_url,
+    _calculate_listing_price_per_m2,
+)
 
 
 # Sample HTML for testing
@@ -12,6 +18,8 @@ SAMPLE_LISTING_HTML = """
     <a href="/obiava/12345">
         <h3 class="listtop-item-title">Продава двустаен апартамент</h3>
     </a>
+    <img class="listtop-item-photo" src="photo1.jpg"/>
+    <img class="listtop-item-photo" src="photo2.jpg"/>
     <div class="listtop-item-address"><i>Лозенец, София</i></div>
     <div class="ads-params-row">
         <div class="ads-param-title">Цена</div>
@@ -39,6 +47,7 @@ SAMPLE_VIP_LISTING_HTML = """
     <a href="/obiava/67890">
         <h3 class="listvip-item-title">Под наем тристаен апартамент</h3>
     </a>
+    <img class="listvip-item-photo" src="photo1.jpg"/>
     <div class="listvip-item-address"><i>Център, Пловдив</i></div>
     <span class="ads-params-multi" title="Цена">800 EUR</span>
     <span class="ads-params-multi" title="Вид на имота">Тристаен апартамент</span>
@@ -51,6 +60,7 @@ SAMPLE_VIP_LISTING_HTML = """
 SAMPLE_PAGE_HTML = f"""
 <html>
 <body>
+    <div class="search-results-count">Намерени 1500 обяви</div>
     {SAMPLE_LISTING_HTML}
     {SAMPLE_VIP_LISTING_HTML}
     <div class="my-paginator">
@@ -127,6 +137,51 @@ class TestExtractAloNeighborhood:
         assert extract_alo_neighborhood(None) == ""
 
 
+class TestExtractRefFromUrl:
+    def test_extract_ref_standard(self):
+        """Extract reference from standard URL."""
+        assert extract_ref_from_url("/obiava/12345-test") == "12345"
+
+    def test_extract_ref_no_match(self):
+        """Returns empty when no match."""
+        assert extract_ref_from_url("/search/imoti") == ""
+
+    def test_extract_ref_empty(self):
+        """Empty URL returns empty string."""
+        assert extract_ref_from_url("") == ""
+
+    def test_extract_ref_none(self):
+        """None URL returns empty string."""
+        assert extract_ref_from_url(None) == ""
+
+
+class TestCalculatePricePerM2:
+    def test_calculate_price_per_m2_standard(self):
+        """Calculate price per m2 for standard case."""
+        raw = {"price_text": "150 000 EUR", "area_text": "100 кв.м."}
+        assert _calculate_listing_price_per_m2(raw) == "1500.0"
+
+    def test_calculate_price_per_m2_with_decimal(self):
+        """Calculate price per m2 with decimal area."""
+        raw = {"price_text": "150 000 EUR", "area_text": "65 кв.м."}
+        result = float(_calculate_listing_price_per_m2(raw))
+        assert 2307 < result < 2308
+
+    def test_calculate_price_per_m2_no_price(self):
+        """Returns empty when no price."""
+        raw = {"price_text": "", "area_text": "65 кв.м."}
+        assert _calculate_listing_price_per_m2(raw) == ""
+
+    def test_calculate_price_per_m2_no_area(self):
+        """Returns empty when no area."""
+        raw = {"price_text": "150 000 EUR", "area_text": ""}
+        assert _calculate_listing_price_per_m2(raw) == ""
+
+    def test_calculate_price_per_m2_empty(self):
+        """Returns empty for empty dict."""
+        assert _calculate_listing_price_per_m2({}) == ""
+
+
 # =============================================================================
 # Parser Config Tests
 # =============================================================================
@@ -197,6 +252,37 @@ class TestAloBgParserExtractListings:
         listings = list(parser.extract_listings(soup))
 
         assert len(listings) == 2
+
+    def test_extract_listing_ref_no(self, parser):
+        """Test extracting reference number from listing."""
+        soup = BeautifulSoup(SAMPLE_LISTING_HTML, "html.parser")
+        listings = list(parser.extract_listings(soup))
+
+        assert listings[0]["ref_no"] == "12345"
+
+    def test_extract_listing_num_photos(self, parser):
+        """Test extracting photo count from listing."""
+        soup = BeautifulSoup(SAMPLE_LISTING_HTML, "html.parser")
+        listings = list(parser.extract_listings(soup))
+
+        assert listings[0]["num_photos"] == 2  # 2 listtop-item-photo images
+
+    def test_extract_listing_total_offers(self, parser):
+        """Test extracting total offers from page."""
+        soup = BeautifulSoup(SAMPLE_PAGE_HTML, "html.parser")
+        listings = list(parser.extract_listings(soup))
+
+        assert listings[0]["total_offers"] == 1500
+        assert listings[1]["total_offers"] == 1500  # Same for all listings
+
+    def test_extract_listing_price_per_m2(self, parser):
+        """Test extracting price per m2 from listing."""
+        soup = BeautifulSoup(SAMPLE_LISTING_HTML, "html.parser")
+        listings = list(parser.extract_listings(soup))
+
+        # 150000 / 65 = 2307.69...
+        price_per_m2 = float(listings[0]["price_per_m2"])
+        assert 2307 < price_per_m2 < 2308
 
     def test_extract_no_listings(self, parser):
         """Test empty page returns no listings."""
@@ -300,6 +386,52 @@ class TestAloBgParserTransformListing:
         result = parser.transform_listing(raw)
 
         assert result.details_url == "https://www.alo.bg/obiava/999"
+
+    def test_transform_listing_with_new_fields(self, parser):
+        """Test transforming a listing with new fields."""
+        raw = {
+            "title": "Продава двустаен апартамент",
+            "details_url": "/obiava/12345",
+            "location": "Лозенец, София",
+            "price_text": "150 000 EUR",
+            "property_type_text": "Двустаен апартамент",
+            "area_text": "65 кв.м.",
+            "floor_text": "3",
+            "description": "Описание",
+            "agency_name": "Агенция Имоти",
+            "ref_no": "12345",
+            "num_photos": 5,
+            "total_offers": 1500,
+            "price_per_m2": "2307.69",
+        }
+        result = parser.transform_listing(raw)
+
+        assert result.ref_no == "12345"
+        assert result.num_photos == 5
+        assert result.total_offers == 1500
+        assert result.price_per_m2 == "2307.69"
+
+    def test_transform_listing_with_search_url(self, parser):
+        """Test transforming a listing with search_url."""
+        raw = {
+            "title": "Продава двустаен апартамент",
+            "details_url": "/obiava/12345",
+            "location": "Лозенец, София",
+            "price_text": "150 000 EUR",
+            "property_type_text": "Двустаен апартамент",
+            "area_text": "65 кв.м.",
+            "floor_text": "3",
+            "description": "Описание",
+            "agency_name": "Агенция Имоти",
+            "ref_no": "12345",
+            "num_photos": 5,
+            "total_offers": 1500,
+            "price_per_m2": "2307.69",
+            "search_url": "https://www.alo.bg/imoti/sofia?type=sale",
+        }
+        result = parser.transform_listing(raw)
+
+        assert result.search_url == "https://www.alo.bg/imoti/sofia?type=sale"
 
 
 # =============================================================================
