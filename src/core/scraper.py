@@ -5,7 +5,7 @@ import pandas as pd
 
 from src.core.normalization import clear_unknown_values, log_unknown_values_summary
 from src.core.parser import BaseParser
-from src.infrastructure.clients.http_client import HttpClient
+from src.infrastructure.clients.http_client import CloudscraperHttpClient, HttpClient
 from src.logger_setup import get_logger
 from src.utils import parse_soup, save_df_to_csv
 
@@ -16,7 +16,10 @@ class GenericScraper:
     def __init__(self, parser: BaseParser, result_folder: str = "results"):
         self.parser = parser
         self.config = parser.config
-        self.http_client = HttpClient(timeout=60, max_retries=3, retry_delay=3.0)
+        if self.config.use_cloudscraper:
+            self.http_client = CloudscraperHttpClient(timeout=60, max_retries=3, retry_delay=3.0)
+        else:
+            self.http_client = HttpClient(timeout=60, max_retries=3, retry_delay=3.0)
         self.result_folder = result_folder
         self.timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
 

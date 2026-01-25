@@ -31,6 +31,7 @@ class SiteConfig:
     rate_limit_seconds: float = 1.0
     max_pages: int = 100
     page_size: int = 100
+    use_cloudscraper: bool = False  # Use cloudscraper for Cloudflare-protected sites
 
 
 class BaseParser(ABC):

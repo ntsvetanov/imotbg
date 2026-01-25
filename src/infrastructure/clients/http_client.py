@@ -103,3 +103,81 @@ class HttpClient:
 
     def fetch_json(self, url: str) -> dict:
         return self._request_with_retry(url, lambda r: r.json())
+
+
+class CloudscraperHttpClient:
+    """
+    HTTP client using cloudscraper to bypass Cloudflare protection.
+
+    This client is designed for sites protected by Cloudflare that block
+    standard HTTP requests (e.g., from GitHub Actions IPs).
+    """
+
+    def __init__(
+        self,
+        timeout: int = 30,
+        max_retries: int = 3,
+        retry_delay: float = 2.0,
+    ):
+        try:
+            import cloudscraper
+        except ImportError:
+            raise ImportError("cloudscraper is required. Install with: pip install cloudscraper")
+
+        self.scraper = cloudscraper.create_scraper(
+            browser={
+                "browser": "chrome",
+                "platform": "windows",
+                "desktop": True,
+            }
+        )
+        self.timeout = timeout
+        self.max_retries = max_retries
+        self.retry_delay = retry_delay
+        logger.debug("Using cloudscraper for Cloudflare bypass")
+
+    def _handle_retry(self, url: str, error: Exception, attempt: int) -> None:
+        is_last_attempt = attempt >= self.max_retries - 1
+
+        if is_last_attempt:
+            logger.error(f"Request failed for {url} after {self.max_retries} attempts: {error}", exc_info=True)
+            return
+
+        wait_time = self.retry_delay * (attempt + 1)
+        logger.warning(
+            f"Request error fetching {url} (attempt {attempt + 1}/{self.max_retries}), retrying in {wait_time}s..."
+        )
+        time.sleep(wait_time)
+
+    def fetch(self, url: str, encoding: str) -> str:
+        last_exception: Exception | None = None
+
+        for attempt in range(self.max_retries):
+            try:
+                response = self.scraper.get(url, timeout=self.timeout)
+                response.raise_for_status()
+                response.encoding = encoding
+                return response.text
+            except Exception as e:
+                last_exception = e
+                self._handle_retry(url, e, attempt)
+
+        if last_exception:
+            raise last_exception
+        raise RuntimeError(f"Unexpected state: no response and no exception for {url}")
+
+    def fetch_json(self, url: str) -> dict:
+        last_exception: Exception | None = None
+
+        for attempt in range(self.max_retries):
+            try:
+                response = self.scraper.get(url, timeout=self.timeout)
+                response.raise_for_status()
+                return response.json()
+            except Exception as e:
+                last_exception = e
+                self._handle_retry(url, e, attempt)
+
+        if last_exception:
+            raise last_exception
+        raise RuntimeError(f"Unexpected state: no response and no exception for {url}")
