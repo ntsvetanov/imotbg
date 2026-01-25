@@ -66,22 +66,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run scraper
-        env:
-          MAILTRAP_HOST: ${{ vars.MAILTRAP_HOST }}
-          MAILTRAP_SENDER_EMAIL: ${{ vars.MAILTRAP_SENDER_EMAIL }}
-          MAILTRAP_SEND_TO_EMAIL: ${{ secrets.MAILTRAP_SEND_TO_EMAIL }}
-          MAILTRAP_TOKEN: ${{ secrets.MAILTRAP_TOKEN }}
-        run: python main.py scrape --scraper_name "${{ matrix.scraper.name }}" --result_folder results
+      - name: Download raw data
+        run: python main.py download --site "${{ matrix.scraper.name }}" --result_folder results
+
+      - name: Process downloaded data
+        run: python main.py process --site "${{ matrix.scraper.name }}" --result_folder results
 
       - name: Upload results artifact
         uses: actions/upload-artifact@v4
         with:
           name: results-${{ matrix.scraper.name }}
-          # Upload only the subtrees we care about, BUT without duplicating "results/" later
-          # This keeps the artifact root as "raw/..." and "processed/..."
           path: |
             results/raw/${{ matrix.scraper.folder }}/
+            results/raw_html/${{ matrix.scraper.folder }}/
             results/processed/${{ matrix.scraper.folder }}/
           retention-days: 1
           if-no-files-found: ignore

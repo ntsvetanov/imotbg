@@ -1,111 +1,161 @@
 import json
 import tempfile
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pandas as pd
 import pytest
 
-from main import load_url_config, run_site_scraper
-from src.sites import SITE_PARSERS
+from main import download_site, load_url_config, process_site, reprocess_site
 
 
-class TestRunSiteScraper:
-    @pytest.fixture
-    def mock_scraper(self):
-        with patch("main.GenericScraper") as mock:
-            scraper_instance = MagicMock()
-            scraper_instance.scrape.return_value = {
-                "raw_df": pd.DataFrame([{"title": "Test"}]),
-                "processed_df": pd.DataFrame([{"title": "Test", "price": 100}]),
-            }
-            scraper_instance.save_results.return_value = True
-            mock.return_value = scraper_instance
-            yield mock, scraper_instance
+class TestDownloadSite:
+    @patch("main.Downloader")
+    @patch("main.get_parser")
+    @patch("main.load_url_config")
+    def test_download_site_success(self, mock_load_config, mock_get_parser, mock_downloader_class):
+        mock_load_config.return_value = {"TestSite": {"urls": [{"url": "http://test.com"}]}}
 
-    @pytest.fixture
-    def mock_get_parser(self):
-        with patch("main.get_parser") as mock:
-            parser = MagicMock()
-            mock.return_value = parser
-            yield mock, parser
+        mock_parser = MagicMock()
+        mock_parser.build_urls.return_value = [{"url": "http://test.com", "folder": "test"}]
+        mock_get_parser.return_value = mock_parser
 
-    def test_run_site_scraper_success(self, mock_scraper, mock_get_parser):
-        _, scraper_instance = mock_scraper
-        urls = [{"url": "http://test.com/1"}, {"url": "http://test.com/2"}]
+        mock_downloader = MagicMock()
+        mock_downloader.download.return_value = Path("/tmp/test.csv")
+        mock_downloader_class.return_value = mock_downloader
 
-        result = run_site_scraper("ImotBg", urls, "results")
+        result = download_site("TestSite", "results")
 
-        assert len(result) == 2
-        assert scraper_instance.scrape.call_count == 2
-        assert scraper_instance.save_results.call_count == 2
+        assert result == 1
+        mock_downloader.download.assert_called_once_with("http://test.com", "test", 0)
 
-    def test_run_site_scraper_empty_urls(self, mock_scraper, mock_get_parser):
-        result = run_site_scraper("ImotBg", [], "results")
+    @patch("main.Downloader")
+    @patch("main.get_parser")
+    @patch("main.load_url_config")
+    def test_download_site_no_urls(self, mock_load_config, mock_get_parser, mock_downloader_class):
+        mock_load_config.return_value = {"TestSite": {}}
 
-        assert len(result) == 0
+        mock_parser = MagicMock()
+        mock_parser.build_urls.return_value = []
+        mock_get_parser.return_value = mock_parser
 
-    def test_run_site_scraper_handles_exception(self, mock_scraper, mock_get_parser):
-        _, scraper_instance = mock_scraper
-        scraper_instance.scrape.side_effect = Exception("Network error")
-        urls = [{"url": "http://test.com/1"}]
+        result = download_site("TestSite", "results")
 
-        result = run_site_scraper("ImotBg", urls, "results")
+        assert result == 0
 
-        assert len(result) == 0
+    @patch("main.Downloader")
+    @patch("main.get_parser")
+    @patch("main.load_url_config")
+    def test_download_site_handles_exception(self, mock_load_config, mock_get_parser, mock_downloader_class):
+        mock_load_config.return_value = {"TestSite": {}}
 
-    def test_run_site_scraper_no_data(self, mock_scraper, mock_get_parser):
-        _, scraper_instance = mock_scraper
-        scraper_instance.save_results.return_value = False
-        urls = [{"url": "http://test.com/1"}]
+        mock_parser = MagicMock()
+        mock_parser.build_urls.return_value = [{"url": "http://test.com"}]
+        mock_get_parser.return_value = mock_parser
 
-        result = run_site_scraper("ImotBg", urls, "results")
+        mock_downloader = MagicMock()
+        mock_downloader.download.side_effect = Exception("Network error")
+        mock_downloader_class.return_value = mock_downloader
 
-        assert len(result) == 0
+        result = download_site("TestSite", "results")
 
-    def test_run_site_scraper_sends_email_on_failure(self, mock_scraper, mock_get_parser):
-        _, scraper_instance = mock_scraper
-        scraper_instance.save_results.return_value = False
-        urls = [{"url": "http://test.com/1"}]
-        email_client = MagicMock()
+        assert result == 0
 
-        run_site_scraper("ImotBg", urls, "results", email_client=email_client)
 
-        email_client.send_email.assert_called_once()
-        call_args = email_client.send_email.call_args
-        assert "No data for ImotBg" in call_args.kwargs["subject"]
-        assert "http://test.com/1" in call_args.kwargs["text"]
+class TestProcessSite:
+    @patch("main.Processor")
+    @patch("main.get_parser")
+    def test_process_site_all_unprocessed(self, mock_get_parser, mock_processor_class):
+        mock_parser = MagicMock()
+        mock_get_parser.return_value = mock_parser
 
-    def test_run_site_scraper_no_email_on_success(self, mock_scraper, mock_get_parser):
-        urls = [{"url": "http://test.com/1"}]
-        email_client = MagicMock()
+        mock_processor = MagicMock()
+        mock_processor.process_all_unprocessed.return_value = [Path("/tmp/a.csv"), Path("/tmp/b.csv")]
+        mock_processor_class.return_value = mock_processor
 
-        run_site_scraper("ImotBg", urls, "results", email_client=email_client)
+        result = process_site("TestSite", "results")
 
-        email_client.send_email.assert_not_called()
+        assert result == 2
+        mock_processor.process_all_unprocessed.assert_called_once()
 
-    def test_run_site_scraper_partial_success(self, mock_scraper, mock_get_parser):
-        _, scraper_instance = mock_scraper
-        scraper_instance.save_results.side_effect = [True, False]
-        urls = [{"url": "http://test.com/1"}, {"url": "http://test.com/2"}]
+    @patch("main.Processor")
+    @patch("main.get_parser")
+    def test_process_site_single_file(self, mock_get_parser, mock_processor_class):
+        mock_parser = MagicMock()
+        mock_get_parser.return_value = mock_parser
 
-        result = run_site_scraper("ImotBg", urls, "results")
+        mock_processor = MagicMock()
+        mock_processor.process_file.return_value = Path("/tmp/output.csv")
+        mock_processor_class.return_value = mock_processor
 
-        assert len(result) == 1
+        result = process_site("TestSite", "results", file_path="/tmp/input.csv")
+
+        assert result == 1
+        mock_processor.process_file.assert_called_once_with(Path("/tmp/input.csv"))
+
+
+class TestReprocessSite:
+    @patch("main.Processor")
+    @patch("main.get_parser")
+    def test_reprocess_site_all(self, mock_get_parser, mock_processor_class):
+        mock_parser = MagicMock()
+        mock_get_parser.return_value = mock_parser
+
+        mock_processor = MagicMock()
+        mock_processor.reprocess_all.return_value = [Path("/tmp/a.csv")]
+        mock_processor_class.return_value = mock_processor
+
+        result = reprocess_site("TestSite", "results")
+
+        assert result == 1
+        mock_processor.reprocess_all.assert_called_once_with("overwrite")
+
+    @patch("main.Processor")
+    @patch("main.get_parser")
+    def test_reprocess_site_folder(self, mock_get_parser, mock_processor_class):
+        mock_parser = MagicMock()
+        mock_get_parser.return_value = mock_parser
+
+        mock_processor = MagicMock()
+        mock_processor.reprocess_folder.return_value = [Path("/tmp/a.csv")]
+        mock_processor_class.return_value = mock_processor
+
+        result = reprocess_site("TestSite", "results", folder="sofia")
+
+        assert result == 1
+        mock_processor.reprocess_folder.assert_called_once_with("sofia", "overwrite")
+
+    @patch("main.Processor")
+    @patch("main.get_parser")
+    def test_reprocess_site_single_file(self, mock_get_parser, mock_processor_class):
+        mock_parser = MagicMock()
+        mock_get_parser.return_value = mock_parser
+
+        mock_processor = MagicMock()
+        mock_processor.reprocess_file.return_value = Path("/tmp/output.csv")
+        mock_processor_class.return_value = mock_processor
+
+        result = reprocess_site("TestSite", "results", file_path="/tmp/input.csv")
+
+        assert result == 1
+        mock_processor.reprocess_file.assert_called_once_with(Path("/tmp/input.csv"), "overwrite")
+
+    @patch("main.Processor")
+    @patch("main.get_parser")
+    def test_reprocess_site_new_mode(self, mock_get_parser, mock_processor_class):
+        mock_parser = MagicMock()
+        mock_get_parser.return_value = mock_parser
+
+        mock_processor = MagicMock()
+        mock_processor.reprocess_all.return_value = []
+        mock_processor_class.return_value = mock_processor
+
+        reprocess_site("TestSite", "results", output_mode="new")
+
+        mock_processor.reprocess_all.assert_called_once_with("new")
 
 
 class TestLoadUrlConfig:
     def test_load_url_config(self):
-        config = {"ImotBg": {"urls": [{"url": "http://test.com"}]}}
-
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            json.dump(config, f)
-            f.flush()
-
-            with patch("main.open", return_value=open(f.name)):
-                with patch("builtins.open", return_value=open(f.name)):
-                    pass
-
-    def test_load_url_config_file_content(self):
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump({"test": "value"}, f)
             temp_path = f.name
@@ -116,99 +166,69 @@ class TestLoadUrlConfig:
 
 
 class TestMainIntegration:
-    @patch("main.load_url_config")
-    @patch("main.get_parser")
-    @patch("main.run_site_scraper")
-    def test_main_runs_all_sites(self, mock_run, mock_get_parser, mock_load_config):
-        mock_load_config.return_value = {
-            "ImotBg": {"urls": [{"url": "http://imot.bg"}]},
-            "ImotiNet": {"urls": [{"url": "http://imoti.net"}]},
-            "HomesBg": {"neighborhoods": [{"id": 1}]},
-        }
+    @patch("main.download_site")
+    @patch("main.process_site")
+    def test_main_scrape_calls_download_and_process(self, mock_process, mock_download):
+        mock_download.return_value = 1
+        mock_process.return_value = 1
 
-        mock_parser = MagicMock()
-        mock_parser.build_urls.return_value = ["http://test.com"]
-        mock_get_parser.return_value = mock_parser
-
-        mock_run.return_value = pd.DataFrame()
-
-        with patch("sys.argv", ["main.py", "scrape", "--scraper_name", "all"]):
+        with patch("sys.argv", ["main.py", "scrape", "--site", "TestSite"]):
             from main import main
 
             main()
 
-        assert mock_run.call_count == len(SITE_PARSERS)
+        mock_download.assert_called_once_with("TestSite", "results")
+        mock_process.assert_called_once_with("TestSite", "results")
 
-    @patch("main.load_url_config")
-    @patch("main.get_parser")
-    @patch("main.run_site_scraper")
-    def test_main_runs_single_site(self, mock_run, mock_get_parser, mock_load_config):
-        mock_load_config.return_value = {"ImotBg": {"urls": [{"url": "http://imot.bg"}]}}
+    @patch("main.download_site")
+    def test_main_download_only(self, mock_download):
+        mock_download.return_value = 1
 
-        mock_parser = MagicMock()
-        mock_parser.build_urls.return_value = ["http://test.com"]
-        mock_get_parser.return_value = mock_parser
-
-        mock_run.return_value = pd.DataFrame()
-
-        with patch("sys.argv", ["main.py", "scrape", "--scraper_name", "ImotBg"]):
+        with patch("sys.argv", ["main.py", "download", "--site", "TestSite"]):
             from main import main
 
             main()
 
-        mock_run.assert_called_once()
-        assert mock_run.call_args[0][0] == "ImotBg"
+        mock_download.assert_called_once_with("TestSite", "results")
 
-    @patch("main.load_url_config")
-    @patch("main.get_parser")
-    @patch("main.run_site_scraper")
-    def test_main_skips_site_without_urls(self, mock_run, mock_get_parser, mock_load_config):
-        mock_load_config.return_value = {"ImotBg": {}}
+    @patch("main.process_site")
+    def test_main_process_only(self, mock_process):
+        mock_process.return_value = 1
 
-        mock_parser = MagicMock()
-        mock_parser.build_urls.return_value = []
-        mock_get_parser.return_value = mock_parser
-
-        with patch("sys.argv", ["main.py", "scrape", "--scraper_name", "ImotBg"]):
+        with patch("sys.argv", ["main.py", "process", "--site", "TestSite"]):
             from main import main
 
             main()
 
-        mock_run.assert_not_called()
+        mock_process.assert_called_once_with("TestSite", "results", None)
 
-    @patch("main.load_url_config")
-    @patch("main.get_parser")
-    @patch("main.run_site_scraper")
-    def test_main_custom_result_folder(self, mock_run, mock_get_parser, mock_load_config):
-        mock_load_config.return_value = {"ImotBg": {"urls": [{"url": "http://imot.bg"}]}}
+    @patch("main.reprocess_site")
+    def test_main_reprocess(self, mock_reprocess):
+        mock_reprocess.return_value = 1
 
-        mock_parser = MagicMock()
-        mock_parser.build_urls.return_value = ["http://test.com"]
-        mock_get_parser.return_value = mock_parser
-
-        mock_run.return_value = pd.DataFrame()
-
-        with patch("sys.argv", ["main.py", "scrape", "--scraper_name", "ImotBg", "--result_folder", "custom_results"]):
+        with patch("sys.argv", ["main.py", "reprocess", "--site", "TestSite", "--folder", "sofia"]):
             from main import main
 
             main()
 
-        assert mock_run.call_args[0][2] == "custom_results"
+        mock_reprocess.assert_called_once_with(
+            "TestSite",
+            "results",
+            folder="sofia",
+            file_path=None,
+            output_mode="overwrite",
+        )
 
-    @patch("main.scrape_single_url")
-    def test_main_with_url_bypasses_config(self, mock_scrape):
-        mock_scrape.return_value = pd.DataFrame([{"price": 100, "city": "Sofia"}])
+    @patch("main.download_site")
+    @patch("main.process_site")
+    def test_main_custom_result_folder(self, mock_process, mock_download):
+        mock_download.return_value = 1
+        mock_process.return_value = 1
 
-        with patch("sys.argv", ["main.py", "scrape", "--scraper_name", "ImotBg", "--url", "http://direct-url.com"]):
+        with patch("sys.argv", ["main.py", "scrape", "--site", "TestSite", "--result_folder", "custom"]):
             from main import main
 
             main()
 
-        mock_scrape.assert_called_once_with("ImotBg", "http://direct-url.com")
-
-    def test_main_url_requires_scraper_name(self):
-        with patch("sys.argv", ["main.py", "scrape", "--url", "http://direct-url.com"]):
-            from main import main
-
-            with pytest.raises(SystemExit):
-                main()
+        mock_download.assert_called_once_with("TestSite", "custom")
+        mock_process.assert_called_once_with("TestSite", "custom")
