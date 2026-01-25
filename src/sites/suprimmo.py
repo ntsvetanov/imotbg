@@ -37,6 +37,7 @@ class SuprimmoParser(BaseParser):
         base_url="https://www.suprimmo.bg",
         encoding="windows-1251",
         rate_limit_seconds=1.5,
+        use_cloudscraper=True,  # Bypass Cloudflare protection
     )
 
     class Fields:

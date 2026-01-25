@@ -27,6 +27,7 @@ class LuximmoParser(BaseParser):
         base_url="https://www.luximmo.bg",
         encoding="windows-1251",
         rate_limit_seconds=1.5,
+        use_cloudscraper=True,  # Bypass Cloudflare protection
     )
 
     class Fields:

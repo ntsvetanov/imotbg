@@ -45,6 +45,7 @@ class ImotBgParser(BaseParser):
         base_url="https://www.imot.bg",
         encoding="windows-1251",
         rate_limit_seconds=1.0,
+        use_cloudscraper=True,  # Bypass Cloudflare protection
     )
 
     class Fields:

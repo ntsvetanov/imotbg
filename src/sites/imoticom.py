@@ -80,6 +80,8 @@ class ImotiComParser(BaseParser):
         base_url="https://www.imoti.com",
         encoding="utf-8",
         rate_limit_seconds=1.0,
+        use_cloudscraper=True,  # Bypass Cloudflare protection
+
     )
 
     class Fields:
