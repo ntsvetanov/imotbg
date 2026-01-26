@@ -24,17 +24,18 @@ def clean_raw_record(record: dict) -> dict:
 
 
 class Processor:
-    def __init__(self, parser: BaseParser, base_path: str = "results"):
+    def __init__(self, parser: BaseParser, base_path: str = "results", year_month_override: str | None = None):
         self.parser = parser
         self.site_name = parser.config.name
         self.base_path = Path(base_path)
+        self.year_month_override = year_month_override
 
     def _raw_dir(self) -> Path:
-        year_month = get_year_month_path()
+        year_month = self.year_month_override or get_year_month_path()
         return self.base_path / year_month / "raw" / self.site_name
 
     def _processed_dir(self) -> Path:
-        year_month = get_year_month_path()
+        year_month = self.year_month_override or get_year_month_path()
         return self.base_path / year_month / "processed" / self.site_name
 
     def _get_output_path(self, raw_file: Path) -> Path:

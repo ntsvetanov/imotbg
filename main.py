@@ -60,14 +60,36 @@ def reprocess_site(
     folder: str | None = None,
     file_path: str | None = None,
     output_mode: str = "overwrite",
+    all_history: bool = False,
 ) -> int:
     parser = get_parser(site_name)
-    processor = Processor(parser, result_folder)
 
     if file_path:
+        processor = Processor(parser, result_folder)
         result = processor.reprocess_file(Path(file_path), output_mode)
         return 1 if result else 0
 
+    if all_history:
+        # Reprocess all historical data across all year/month folders
+        base_path = Path(result_folder)
+        total_results = []
+        for year_dir in sorted(base_path.iterdir()):
+            if not year_dir.is_dir() or not year_dir.name.isdigit():
+                continue
+            for month_dir in sorted(year_dir.iterdir()):
+                if not month_dir.is_dir() or not month_dir.name.isdigit():
+                    continue
+                year_month = f"{year_dir.name}/{month_dir.name}"
+                processor = Processor(parser, result_folder, year_month_override=year_month)
+                if folder:
+                    results = processor.reprocess_folder(folder, output_mode)
+                else:
+                    results = processor.reprocess_all(output_mode)
+                total_results.extend(results)
+        logger.info(f"[{site_name}] Reprocessed {len(total_results)} files (all history)")
+        return len(total_results)
+
+    processor = Processor(parser, result_folder)
     if folder:
         results = processor.reprocess_folder(folder, output_mode)
     else:
@@ -102,6 +124,7 @@ def main() -> None:
     rp.add_argument("--site", required=True)
     rp.add_argument("--folder")
     rp.add_argument("--file")
+    rp.add_argument("--all", action="store_true", help="Reprocess all historical data")
     rp.add_argument("--output", choices=["overwrite", "new"], default="overwrite")
     rp.add_argument("--result_folder", default="results")
 
@@ -128,6 +151,7 @@ def main() -> None:
             folder=args.folder,
             file_path=args.file,
             output_mode=args.output,
+            all_history=getattr(args, "all", False),
         )
 
 
