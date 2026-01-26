@@ -52,6 +52,12 @@ jobs:
             config.py
             url_configs.json
 
+      - name: Set date variables
+        id: date
+        run: |
+          echo "year=$(date -u +%Y)" >> $GITHUB_OUTPUT
+          echo "month=$(date -u +%m)" >> $GITHUB_OUTPUT
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -59,7 +65,7 @@ jobs:
           cache: "pip"
 
       - name: Create data directory
-        run: mkdir -p results
+        run: mkdir -p results/${{ steps.date.outputs.year }}/${{ steps.date.outputs.month }}
 
       - name: Install requirements
         run: |
@@ -67,19 +73,19 @@ jobs:
           pip install -r requirements.txt
 
       - name: Download raw data
-        run: python main.py download --site "${{ matrix.scraper.name }}" --result_folder results
+        run: python main.py download --site "${{ matrix.scraper.name }}" --result_folder results/${{ steps.date.outputs.year }}/${{ steps.date.outputs.month }}
 
       - name: Process downloaded data
-        run: python main.py process --site "${{ matrix.scraper.name }}" --result_folder results
+        run: python main.py process --site "${{ matrix.scraper.name }}" --result_folder results/${{ steps.date.outputs.year }}/${{ steps.date.outputs.month }}
 
       - name: Upload results artifact
         uses: actions/upload-artifact@v4
         with:
           name: results-${{ matrix.scraper.name }}
           path: |
-            results/raw/${{ matrix.scraper.folder }}/
-            results/raw_html/${{ matrix.scraper.folder }}/
-            results/processed/${{ matrix.scraper.folder }}/
+            results/${{ steps.date.outputs.year }}/${{ steps.date.outputs.month }}/raw/${{ matrix.scraper.folder }}/
+            results/${{ steps.date.outputs.year }}/${{ steps.date.outputs.month }}/raw_html/${{ matrix.scraper.folder }}/
+            results/${{ steps.date.outputs.year }}/${{ steps.date.outputs.month }}/processed/${{ matrix.scraper.folder }}/
           retention-days: 1
           if-no-files-found: ignore
 
