@@ -9,7 +9,7 @@ import pandas as pd
 from src.core.parser import BaseParser
 from src.infrastructure.clients.http_client import CloudscraperHttpClient, HttpClient
 from src.logger_setup import get_logger
-from src.utils import parse_soup
+from src.utils import get_year_month_path, parse_soup
 
 logger = get_logger(__name__)
 
@@ -37,7 +37,8 @@ class Downloader:
         return raw_html, parse_soup(raw_html)
 
     def _build_path(self, base: str, folder: str | None) -> Path:
-        path = Path(self.result_folder) / base / self.config.name
+        year_month = get_year_month_path()
+        path = Path(self.result_folder) / year_month / base / self.config.name
         if folder:
             path = path / folder
         path.mkdir(parents=True, exist_ok=True)

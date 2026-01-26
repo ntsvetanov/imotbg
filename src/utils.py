@@ -23,6 +23,12 @@ def get_now_date() -> str:
     return datetime.now().strftime("%Y-%m-%d")
 
 
+def get_year_month_path() -> str:
+    """Return current year/month path like '2026/01'"""
+    now = datetime.now()
+    return f"{now.year}/{now.month:02d}"
+
+
 def save_df_to_csv(
     df: pd.DataFrame,
     result_path: str,

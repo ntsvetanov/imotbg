@@ -6,7 +6,7 @@ import pandas as pd
 from src.core.normalization import clear_unknown_values, log_unknown_values_summary
 from src.core.parser import BaseParser
 from src.logger_setup import get_logger
-from src.utils import get_now_for_filename
+from src.utils import get_now_for_filename, get_year_month_path
 
 logger = get_logger(__name__)
 
@@ -30,10 +30,12 @@ class Processor:
         self.base_path = Path(base_path)
 
     def _raw_dir(self) -> Path:
-        return self.base_path / "raw" / self.site_name
+        year_month = get_year_month_path()
+        return self.base_path / year_month / "raw" / self.site_name
 
     def _processed_dir(self) -> Path:
-        return self.base_path / "processed" / self.site_name
+        year_month = get_year_month_path()
+        return self.base_path / year_month / "processed" / self.site_name
 
     def _get_output_path(self, raw_file: Path) -> Path:
         rel_path = raw_file.relative_to(self._raw_dir())
