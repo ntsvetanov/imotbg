@@ -9,6 +9,7 @@ from src.core.transforms import (
     extract_currency,
     extract_offer_type,
     extract_property_type,
+    is_valid_offer_type,
     parse_price,
 )
 
@@ -35,11 +36,27 @@ def extract_alo_neighborhood(location: str) -> str:
 
 
 def extract_ref_from_url(url: str) -> str:
-    """Extract reference number from URL like '/obiava/12345-...'."""
+    """Extract reference number from URL.
+
+    Handles multiple URL formats:
+    - '/obiava/12345-...' -> '12345'
+    - '/yujen-dvustaen-apartament-10383253' -> '10383253'
+    """
     if not url:
         return ""
+    # Try obiava format first
     match = re.search(r"/obiava/(\d+)", url)
-    return match.group(1) if match else ""
+    if match:
+        return match.group(1)
+    # Try trailing number format (common in alo.bg URLs)
+    match = re.search(r"-(\d{6,})(?:\?|$|/)", url)
+    if match:
+        return match.group(1)
+    # Try any trailing number at end of URL path
+    match = re.search(r"-(\d+)$", url.split("?")[0])
+    if match:
+        return match.group(1)
+    return ""
 
 
 def _calculate_listing_price_per_m2(raw: dict) -> str:
@@ -60,7 +77,7 @@ class AloBgParser(BaseParser):
     class Fields:
         raw_title = Field("title")
         property_type = Field("property_type_text", extract_property_type)
-        offer_type = Field("title", extract_offer_type)
+        offer_type = Field("offer_type")  # Pre-normalized in extract_listings
         price = Field("price_text", parse_price)
         currency = Field("price_text", extract_currency)
         city = Field("location", extract_alo_city)
@@ -159,25 +176,81 @@ class AloBgParser(BaseParser):
         return raw
 
     def _extract_total_offers(self, soup) -> int:
-        """Extract total offers count from page."""
-        # Look for count in the results header
-        count_elem = soup.select_one(".search-results-count, .results-count")
-        if count_elem:
-            text = count_elem.get_text(strip=True)
-            match = re.search(r"(\d+)", text.replace(" ", ""))
-            if match:
-                return int(match.group(1))
+        """Extract total offers count from page.
+
+        Alo.bg shows count like "157 обяви" or "Намерени 157 обяви" in page header.
+        """
+        # Try multiple selectors for different page layouts
+        for selector in [
+            ".search-results-count",
+            ".results-count",
+            ".list-count",
+            "h1",  # Sometimes count is in the main heading
+            ".category-list-title",
+        ]:
+            count_elem = soup.select_one(selector)
+            if count_elem:
+                text = count_elem.get_text(strip=True)
+                # Match patterns like "157 обяви" or "Намерени 157"
+                match = re.search(r"(\d[\d\s]*)\s*обяв", text.replace("\xa0", " "))
+                if match:
+                    return int(match.group(1).replace(" ", ""))
         return 0
+
+    def _detect_offer_type_from_page(self, soup) -> str:
+        """Detect default offer type from page URL embedded in page or meta tags.
+
+        Alo.bg URLs contain patterns like:
+        - /imoti-prodajbi/ for sales
+        - /imoti-naemi/ for rentals
+        """
+        # Check canonical URL
+        canonical = soup.select_one("link[rel='canonical']")
+        if canonical:
+            url = canonical.get("href", "")
+            offer_type = extract_offer_type("", url)
+            if is_valid_offer_type(offer_type):
+                return offer_type
+
+        # Check og:url
+        og_url = soup.select_one("meta[property='og:url']")
+        if og_url:
+            url = og_url.get("content", "")
+            offer_type = extract_offer_type("", url)
+            if is_valid_offer_type(offer_type):
+                return offer_type
+
+        # Check page title or breadcrumbs for sale/rent keywords
+        title = soup.select_one("title")
+        if title:
+            title_text = title.get_text(strip=True).lower()
+            if "продажб" in title_text or "prodajb" in title_text:
+                return "продава"
+            elif "наем" in title_text or "naem" in title_text:
+                return "наем"
+
+        return ""
 
     def extract_listings(self, soup):
         # Extract total offers from the page (only once per page)
         total_offers = self._extract_total_offers(soup)
+
+        # Detect default offer type from page context (URL patterns in meta tags)
+        default_offer_type = self._detect_offer_type_from_page(soup)
 
         # Extract from both top listings and vip listings
         for item in soup.select("div.listtop-item, div.listvip-item"):
             listing = self._extract_listing(item)
             if listing:
                 listing["total_offers"] = total_offers
+
+                # Determine offer_type: try from title first, fall back to page context
+                title = listing.get("title", "")
+                offer_type = extract_offer_type(title, "")
+                if not is_valid_offer_type(offer_type):
+                    offer_type = default_offer_type
+                listing["offer_type"] = offer_type
+
                 yield listing
 
     def get_total_pages(self, soup) -> int:

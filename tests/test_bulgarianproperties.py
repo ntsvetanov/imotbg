@@ -329,6 +329,13 @@ class TestBulgarianPropertiesParserExtractListings:
         # Second listing has no broker, should use default
         assert listings[1]["agency_name"] == "Bulgarian Properties"
 
+    def test_extract_listing_new_fields(self, parser, soup):
+        """Test that new fields are present in extracted listings."""
+        listings = list(parser.extract_listings(soup))
+        assert "num_photos" in listings[0]
+        assert "total_offers" in listings[0]
+        assert "time" in listings[0]
+
     def test_extract_listing_new_price(self, parser, soup):
         listings = list(parser.extract_listings(soup))
         assert "500" in listings[1]["price_text"]

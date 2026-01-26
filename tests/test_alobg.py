@@ -142,6 +142,14 @@ class TestExtractRefFromUrl:
         """Extract reference from standard URL."""
         assert extract_ref_from_url("/obiava/12345-test") == "12345"
 
+    def test_extract_ref_trailing_number(self):
+        """Extract reference from URL with trailing number."""
+        assert extract_ref_from_url("/yujen-dvustaen-apartament-10383253") == "10383253"
+
+    def test_extract_ref_trailing_with_query(self):
+        """Extract reference from URL with trailing number and query params."""
+        assert extract_ref_from_url("/yujen-apartament-10383253?ref=test") == "10383253"
+
     def test_extract_ref_no_match(self):
         """Returns empty when no match."""
         assert extract_ref_from_url("/search/imoti") == ""
@@ -291,6 +299,37 @@ class TestAloBgParserExtractListings:
 
         assert len(listings) == 0
 
+    def test_extract_offer_type_from_title(self, parser):
+        """Test offer_type is extracted from title when present."""
+        soup = BeautifulSoup(SAMPLE_LISTING_HTML, "html.parser")
+        listings = list(parser.extract_listings(soup))
+
+        # Title is "Продава двустаен апартамент" which contains "Продава"
+        assert listings[0]["offer_type"] == "продава"
+
+    def test_extract_offer_type_from_page_context(self, parser):
+        """Test offer_type is extracted from page context when not in title."""
+        # HTML with title that doesn't contain offer type, but has canonical URL
+        html = """
+        <html>
+        <head>
+            <link rel="canonical" href="https://www.alo.bg/obiavi/imoti-prodajbi/apartamenti/" />
+        </head>
+        <body>
+            <div class="listtop-item">
+                <a href="/obiava/12345">
+                    <h3 class="listtop-item-title">Двустаен апартамент в центъра</h3>
+                </a>
+            </div>
+        </body>
+        </html>
+        """
+        soup = BeautifulSoup(html, "html.parser")
+        listings = list(parser.extract_listings(soup))
+
+        assert len(listings) == 1
+        assert listings[0]["offer_type"] == "продава"
+
 
 # =============================================================================
 # Transform Listing Tests
@@ -314,6 +353,7 @@ class TestAloBgParserTransformListing:
             "floor_text": "3",
             "description": "Описание",
             "agency_name": "Агенция Имоти",
+            "offer_type": "продава",  # Set by extract_listings
         }
         result = parser.transform_listing(raw)
 
@@ -340,6 +380,7 @@ class TestAloBgParserTransformListing:
             "floor_text": "5",
             "description": "",
             "agency_name": "",
+            "offer_type": "наем",  # Set by extract_listings
         }
         result = parser.transform_listing(raw)
 

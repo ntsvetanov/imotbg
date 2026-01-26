@@ -122,8 +122,36 @@ class BulgarianPropertiesParser(BaseParser):
         search_url = Field("search_url")
         price_per_m2 = Field("size_text", extract_price_per_m2)
         floor = Field("size_text", extract_floor)
+        num_photos = Field("num_photos")
+        total_offers = Field("total_offers")
+        time = Field("time")
+
+    def _extract_total_offers(self, soup) -> int:
+        """Extract total offers count from page.
+
+        Bulgarian Properties shows count in pagination info or results header.
+        """
+        # Try to find results count in text like "Резултати: 1234" or "1234 имота"
+        for selector in [
+            ".results-count",
+            ".search-results-count",
+            ".total-results",
+            "h1",
+            ".page-title",
+        ]:
+            elem = soup.select_one(selector)
+            if elem:
+                text = elem.get_text(strip=True)
+                # Match patterns like "1234 имота" or "Резултати: 1234"
+                match = re.search(r"(\d[\d\s]*)\s*(?:имот|резултат|оферт)", text, re.IGNORECASE)
+                if match:
+                    return int(match.group(1).replace(" ", ""))
+        return 0
 
     def extract_listings(self, soup):
+        # Extract total offers from the page (only once per page)
+        total_offers = self._extract_total_offers(soup)
+
         # Find all property items - looking for component-property-item class
         for item in soup.select("div.component-property-item"):
             # Extract title
@@ -168,6 +196,14 @@ class BulgarianPropertiesParser(BaseParser):
             broker_elem = item.select_one(".broker .broker-info .name, .broker .name")
             agency_name = broker_elem.get_text(strip=True) if broker_elem else "Bulgarian Properties"
 
+            # Count photos in listing card
+            photos = item.select("img, .image img, .property-item-top img")
+            num_photos = len(photos) if photos else 0
+
+            # Extract date/time if available
+            time_elem = item.select_one(".date, .time, .updated, [class*='date']")
+            time_text = time_elem.get_text(strip=True) if time_elem else ""
+
             yield {
                 "price_text": price_text,
                 "title": title,
@@ -177,6 +213,9 @@ class BulgarianPropertiesParser(BaseParser):
                 "details_url": details_url,
                 "ref_no": ref_no,
                 "agency_name": agency_name,
+                "num_photos": num_photos,
+                "total_offers": total_offers,
+                "time": time_text,
             }
 
     def get_total_pages(self, soup) -> int:

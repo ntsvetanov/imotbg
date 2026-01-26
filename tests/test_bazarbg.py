@@ -133,6 +133,21 @@ class TestBazarBgParserExtractListings:
         listings = list(parser.extract_listings(soup))
         assert listings[0]["date"] == "19.01.2026"
 
+    def test_extract_listing_offer_type_from_title(self, parser, soup):
+        """Test offer_type is extracted from title when present."""
+        listings = list(parser.extract_listings(soup))
+        # Title is "Продава 2-стаен апартамент" which contains "Продава"
+        assert listings[0]["offer_type"] == "продава"
+
+    def test_extract_listing_new_fields(self, parser, soup):
+        """Test that new fields are present in extracted listings."""
+        listings = list(parser.extract_listings(soup))
+        assert "area" in listings[0]
+        assert "floor" in listings[0]
+        assert "num_photos" in listings[0]
+        assert "total_offers" in listings[0]
+        assert "offer_type" in listings[0]
+
     def test_extract_listings_no_items(self, parser):
         soup = BeautifulSoup("<html><body></body></html>", "html.parser")
         listings = list(parser.extract_listings(soup))
@@ -214,6 +229,7 @@ class TestBazarBgParserTransform:
             "details_url": "/ad/12345",
             "ref_no": "12345",
             "date": "19.01.2026",
+            "offer_type": "продава",  # Set by extract_listings
         }
         result = parser.transform_listing(raw)
 
@@ -281,6 +297,7 @@ class TestBazarBgParserTransform:
             "details_url": "/ad/999",
             "ref_no": "999",
             "date": "",
+            "offer_type": "наем",  # Set by extract_listings
         }
         result = parser.transform_listing(raw)
 
@@ -452,6 +469,7 @@ class TestBazarBgParserEdgeCases:
             "details_url": "/ad/123",
             "ref_no": "123",
             "date": "",
+            "offer_type": "продава",  # Set by extract_listings
         }
         result = parser.transform_listing(raw)
 
