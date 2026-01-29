@@ -65,7 +65,7 @@ jobs:
           cache: "pip"
 
       - name: Create data directory
-        run: mkdir -p results/${{ steps.date.outputs.year }}/${{ steps.date.outputs.month }}
+        run: mkdir -p results
 
       - name: Install requirements
         run: |
@@ -73,10 +73,10 @@ jobs:
           pip install -r requirements.txt
 
       - name: Download raw data
-        run: python main.py download --site "${{ matrix.scraper.name }}" --result_folder results/${{ steps.date.outputs.year }}/${{ steps.date.outputs.month }}
+        run: python main.py download --site "${{ matrix.scraper.name }}" --result_folder results
 
       - name: Process downloaded data
-        run: python main.py process --site "${{ matrix.scraper.name }}" --result_folder results/${{ steps.date.outputs.year }}/${{ steps.date.outputs.month }}
+        run: python main.py process --site "${{ matrix.scraper.name }}" --result_folder results
 
       - name: Upload results artifact
         uses: actions/upload-artifact@v4
