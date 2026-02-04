@@ -1,213 +1,139 @@
+"""Extractor for suprimmo.bg real estate listings."""
+
 import re
+from datetime import datetime
+from typing import Any, Iterator
 
-from src.core.parser import BaseParser, Field, SiteConfig
-from src.core.transforms import (
-    calculate_price_per_m2,
-    extract_area,
-    extract_city_with_prefix,
-    extract_currency,
-    extract_floor,
-    extract_neighborhood_with_prefix,
-    extract_offer_type,
-    extract_property_type,
-    is_valid_offer_type,
-    is_without_dds,
-    parse_price,
-)
+from bs4 import BeautifulSoup, Tag
+
+from src.core.extractor import BaseExtractor, SiteConfig
+from src.core.models import RawListing
 
 
-def extract_ref_from_contact_url(url: str) -> str:
-    """Extract reference number from contact URL like 'ref_no=SOF 109946'"""
-    if not url:
-        return ""
-    match = re.search(r"ref_no=([^&\"']+)", url)
-    return match.group(1).strip() if match else ""
+class SuprimmoExtractor(BaseExtractor):
+    """Extractor for suprimmo.bg."""
 
-
-def _calculate_listing_price_per_m2(raw: dict) -> str:
-    """Calculate price per m2 from raw listing data."""
-    price = parse_price(raw.get("price_text", ""))
-    area_str = extract_area(raw.get("details_text", ""))
-    return calculate_price_per_m2(price, area_str)
-
-
-class SuprimmoParser(BaseParser):
     config = SiteConfig(
         name="suprimmo",
         base_url="https://www.suprimmo.bg",
         encoding="windows-1251",
         rate_limit_seconds=1.5,
-        use_cloudscraper=True,  # Bypass Cloudflare protection
+        use_cloudscraper=True,
     )
 
-    class Fields:
-        price = Field("price_text", parse_price)
-        currency = Field("price_text", extract_currency)
-        without_dds = Field("price_text", is_without_dds)
-        city = Field("location", extract_city_with_prefix)
-        neighborhood = Field("location", extract_neighborhood_with_prefix)
-        raw_title = Field("title")
-        property_type = Field("title", extract_property_type)
-        offer_type = Field("offer_type")
-        raw_description = Field("description")
-        details_url = Field("details_url")
-        area = Field("details_text", extract_area)
-        floor = Field("details_text", extract_floor)
-        ref_no = Field("ref_no")
-        agency = Field("agency_name")
-        num_photos = Field("num_photos")
-        total_offers = Field("total_offers")
-        price_per_m2 = Field("price_per_m2")
-        search_url = Field("search_url")
-
-    def _extract_total_offers(self, soup) -> int:
-        """Extract total offers count from page like '1448 намерени оферти'"""
-        # Look for the count in the page header
-        count_elem = soup.select_one("p.font-medium.font-semibold")
-        if count_elem:
-            text = count_elem.get_text(strip=True)
-            match = re.search(r"(\d+)\s*намерени", text)
-            if match:
-                return int(match.group(1))
+    def _extract_total_offers(self, soup: BeautifulSoup) -> int:
+        elem = soup.select_one("p.font-medium.font-semibold")
+        if elem and (match := re.search(r"(\d+)\s*намерени", elem.get_text())):
+            return int(match.group(1))
         return 0
 
-    def extract_listings(self, soup):
-        # Extract total offers from the page (only once per page)
-        total_offers = self._extract_total_offers(soup)
-
-        # Try to determine default offer type from page URL/context
-        # Check if page is a sales or rent page by looking at dataLayer or page content
-        default_offer_type = ""
-        datalayer = soup.select_one("script:-soup-contains('listing_pagetype')")
-        if datalayer:
-            text = datalayer.get_text().lower()
+    def _detect_offer_type(self, soup: BeautifulSoup) -> str:
+        script = soup.select_one("script:-soup-contains('listing_pagetype')")
+        if script:
+            text = script.get_text().lower()
             if "type:'продава'" in text or "type:'продажба'" in text:
-                default_offer_type = "продава"
-            elif "type:'наем'" in text:
-                default_offer_type = "наем"
+                return "продава"
+            if "type:'наем'" in text:
+                return "наем"
+        return ""
 
-        # Find all property cards - they have class "panel rel shadow offer"
+    def _get_details_url(self, card: Tag) -> str:
+        link = card.select_one("a.lnk")
+        if link and link.get("href"):
+            return link["href"]
+        btn = card.select_one("div.foot a.button[href*='/imot-']")
+        return btn["href"] if btn else ""
+
+    def _get_price(self, card: Tag) -> str:
+        elem = card.select_one("div.prc")
+        if not elem:
+            return ""
+        text = elem.get_text(separator=" ", strip=True).replace("\xa0", " ")
+        if match := re.search(r"([\d\s]+)\s*€", text):
+            return f"{match.group(1).strip()} €"
+        return text
+
+    def _get_location(self, card: Tag) -> str:
+        elem = card.select_one("div.loc")
+        if not elem:
+            return ""
+        for marker in elem.select("a.property_map"):
+            marker.extract()
+        return elem.get_text(separator=" / ", strip=True)
+
+    def _get_title(self, card: Tag, offer_type: str) -> str:
+        elem = card.select_one("div.ttl")
+        if not elem:
+            return ""
+        for icon in elem.select("i"):
+            icon.extract()
+        title = elem.get_text(strip=True)
+        return self.prepend_offer_type(title, offer_type)
+
+    def _get_detail(self, card: Tag, field: str) -> str:
+        elem = card.select_one("div.lst")
+        if not elem:
+            return ""
+        text = elem.get_text(strip=True)
+        patterns = {
+            "area": r"Площ:\s*([\d.,]+\s*м)",
+            "floor": r"Етаж:\s*(\d+)",
+            "total_floors": r"Етажност на сградата:\s*(\d+)",
+        }
+        if match := re.search(patterns[field], text, re.IGNORECASE):
+            return match.group(1)
+        return ""
+
+    def _get_badges(self, card: Tag) -> str:
+        return self.extract_badges(card, "span.badge", exclude_classes=["has_luximo"])
+
+    def _get_raw_link_description(self, card: Tag) -> str:
+        link = card.select_one("a.lnk")
+        return link.get("title", "") if link else ""
+
+    def extract_listings(self, content: Any) -> Iterator[RawListing]:
+        soup: BeautifulSoup = content
+        total_offers = self._extract_total_offers(soup)
+        offer_type = self._detect_offer_type(soup)
+        scraped_at = datetime.now()
+
         for card in soup.select("div.panel.offer"):
-            # Get property ID from data attribute
-            prop_id = card.get("data-prop-id", "")
+            yield RawListing(
+                site=self.config.name,
+                scraped_at=scraped_at,
+                details_url=self._get_details_url(card),
+                price_text=self._get_price(card),
+                location_text=self._get_location(card),
+                title=self._get_title(card, offer_type),
+                description=self._get_badges(card),
+                area_text=self._get_detail(card, "area"),
+                floor_text=self._get_detail(card, "floor"),
+                total_floors_text=self._get_detail(card, "total_floors"),
+                agency_name="Suprimmo",
+                num_photos=len(card.select("div.slider-embed div.item")),
+                ref_no=card.get("data-prop-id", ""),
+                total_offers=total_offers,
+                raw_link_description=self._get_raw_link_description(card),
+            )
 
-            # Extract details URL from the link
-            details_link = card.select_one("a.lnk")
-            details_url = details_link.get("href", "") if details_link else ""
+    def get_total_pages(self, content: Any) -> int:
+        soup: BeautifulSoup = content
+        elem = soup.select_one("p.font-medium.font-semibold")
+        if elem and (match := re.search(r"от\s*(\d+)", elem.get_text())):
+            return int(match.group(1))
+        return self.config.max_pages if soup.select_one("link[rel='next']") else 1
 
-            # Fallback to button link
-            if not details_url:
-                btn_link = card.select_one("div.foot a.button[href*='/imot-']")
-                details_url = btn_link.get("href", "") if btn_link else ""
-
-            # Extract title from div.ttl
-            title_elem = card.select_one("div.ttl")
-            title = ""
-            if title_elem:
-                # Get text without the info icon
-                for icon in title_elem.select("i"):
-                    icon.decompose()
-                title = title_elem.get_text(strip=True)
-
-            # Extract price from div.prc
-            price_elem = card.select_one("div.prc")
-            price_text = ""
-            if price_elem:
-                price_text = price_elem.get_text(separator=" ", strip=True)
-                # Try to extract EUR price specifically
-                eur_match = re.search(r"([\d\s]+)\s*€", price_text.replace("\xa0", " "))
-                if eur_match:
-                    price_text = eur_match.group(1).strip() + " €"
-
-            # Extract location from div.loc
-            location_elem = card.select_one("div.loc")
-            location = ""
-            if location_elem:
-                # Remove map marker link
-                for marker in location_elem.select("a.property_map"):
-                    marker.decompose()
-                location = location_elem.get_text(separator=" / ", strip=True)
-
-            # Extract details (area, floor, etc.) from div.lst
-            details_elem = card.select_one("div.lst")
-            details_text = details_elem.get_text(strip=True) if details_elem else ""
-
-            # Extract reference number from agent contact link
-            agent_link = card.select_one("a.offer-agent-form")
-            ref_no = ""
-            if agent_link:
-                ref_no = extract_ref_from_contact_url(agent_link.get("href", ""))
-
-            # If no ref_no from link, try from prop_id
-            if not ref_no and prop_id:
-                ref_no = prop_id
-
-            # Determine offer type from URL first, then fall back to page context
-            offer_type = extract_offer_type("", details_url)
-            if not is_valid_offer_type(offer_type):
-                offer_type = default_offer_type
-
-            # Count photos
-            photos = card.select("div.slider-embed div.item")
-            num_photos = len(photos)
-
-            # Build raw listing dict
-            raw = {
-                "price_text": price_text,
-                "title": title,
-                "location": location,
-                "details_text": details_text,
-                "description": "",
-                "details_url": details_url,
-                "ref_no": ref_no,
-                "offer_type": offer_type,
-                "agency_name": "Suprimmo",
-                "num_photos": num_photos,
-                "total_offers": total_offers,
-            }
-
-            # Calculate price per m2
-            raw["price_per_m2"] = _calculate_listing_price_per_m2(raw)
-
-            yield raw
-
-    def get_total_pages(self, soup) -> int:
-        """Extract total pages from '1448 намерени оферти / Страницa 1 от 61'"""
-        count_elem = soup.select_one("p.font-medium.font-semibold")
-        if count_elem:
-            text = count_elem.get_text(strip=True)
-            # Look for "Страницa X от Y" pattern
-            match = re.search(r"от\s*(\d+)", text)
-            if match:
-                return int(match.group(1))
-
-        # Fallback: Check for rel="next" link in head
-        next_link = soup.select_one("link[rel='next']")
-        if next_link:
-            return self.config.max_pages
-        return 1
-
-    def get_next_page_url(self, soup, current_url: str, page_number: int) -> str | None:
-        # Check if there are any listings on current page
-        has_items = bool(soup.select("div.panel.offer"))
-        if not has_items:
+    def get_next_page_url(self, content: Any, current_url: str, page_number: int) -> str | None:
+        soup: BeautifulSoup = content
+        if not soup.select("div.panel.offer"):
             return None
 
-        # Check for next page link in HTML head - this is the key indicator
-        # If there's no rel="next" link, we're on the last page
         next_link = soup.select_one("link[rel='next']")
         if not next_link:
             return None
 
-        # For page 2, use the rel="next" link from page 1
         if page_number == 2:
             return next_link.get("href")
 
-        # Suprimmo uses: /page/2/, /page/3/, etc.
-        # Base URL without trailing slash and page suffix
         base_url = re.sub(r"/page/\d+/?$", "", current_url.rstrip("/"))
-
-        # Construct next page URL
-        next_url = f"{base_url}/page/{page_number}/"
-
-        return next_url
+        return f"{base_url}/page/{page_number}/"

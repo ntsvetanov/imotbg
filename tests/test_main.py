@@ -3,21 +3,19 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from main import download_site, load_url_config, process_site, reprocess_site
 
 
 class TestDownloadSite:
     @patch("main.Downloader")
-    @patch("main.get_parser")
+    @patch("main.get_extractor")
     @patch("main.load_url_config")
-    def test_download_site_success(self, mock_load_config, mock_get_parser, mock_downloader_class):
+    def test_download_site_success(self, mock_load_config, mock_get_extractor, mock_downloader_class):
         mock_load_config.return_value = {"TestSite": {"urls": [{"url": "http://test.com"}]}}
 
-        mock_parser = MagicMock()
-        mock_parser.build_urls.return_value = [{"url": "http://test.com", "folder": "test"}]
-        mock_get_parser.return_value = mock_parser
+        mock_extractor = MagicMock()
+        mock_extractor.build_urls.return_value = [{"url": "http://test.com", "folder": "test"}]
+        mock_get_extractor.return_value = mock_extractor
 
         mock_downloader = MagicMock()
         mock_downloader.download.return_value = Path("/tmp/test.csv")
@@ -29,28 +27,28 @@ class TestDownloadSite:
         mock_downloader.download.assert_called_once_with("http://test.com", "test", 0)
 
     @patch("main.Downloader")
-    @patch("main.get_parser")
+    @patch("main.get_extractor")
     @patch("main.load_url_config")
-    def test_download_site_no_urls(self, mock_load_config, mock_get_parser, mock_downloader_class):
+    def test_download_site_no_urls(self, mock_load_config, mock_get_extractor, mock_downloader_class):
         mock_load_config.return_value = {"TestSite": {}}
 
-        mock_parser = MagicMock()
-        mock_parser.build_urls.return_value = []
-        mock_get_parser.return_value = mock_parser
+        mock_extractor = MagicMock()
+        mock_extractor.build_urls.return_value = []
+        mock_get_extractor.return_value = mock_extractor
 
         result = download_site("TestSite", "results")
 
         assert result == 0
 
     @patch("main.Downloader")
-    @patch("main.get_parser")
+    @patch("main.get_extractor")
     @patch("main.load_url_config")
-    def test_download_site_handles_exception(self, mock_load_config, mock_get_parser, mock_downloader_class):
+    def test_download_site_handles_exception(self, mock_load_config, mock_get_extractor, mock_downloader_class):
         mock_load_config.return_value = {"TestSite": {}}
 
-        mock_parser = MagicMock()
-        mock_parser.build_urls.return_value = [{"url": "http://test.com"}]
-        mock_get_parser.return_value = mock_parser
+        mock_extractor = MagicMock()
+        mock_extractor.build_urls.return_value = [{"url": "http://test.com"}]
+        mock_get_extractor.return_value = mock_extractor
 
         mock_downloader = MagicMock()
         mock_downloader.download.side_effect = Exception("Network error")
@@ -63,10 +61,10 @@ class TestDownloadSite:
 
 class TestProcessSite:
     @patch("main.Processor")
-    @patch("main.get_parser")
-    def test_process_site_all_unprocessed(self, mock_get_parser, mock_processor_class):
-        mock_parser = MagicMock()
-        mock_get_parser.return_value = mock_parser
+    @patch("main.get_extractor")
+    def test_process_site_all_unprocessed(self, mock_get_extractor, mock_processor_class):
+        mock_extractor = MagicMock()
+        mock_get_extractor.return_value = mock_extractor
 
         mock_processor = MagicMock()
         mock_processor.process_all_unprocessed.return_value = [Path("/tmp/a.csv"), Path("/tmp/b.csv")]
@@ -78,10 +76,10 @@ class TestProcessSite:
         mock_processor.process_all_unprocessed.assert_called_once()
 
     @patch("main.Processor")
-    @patch("main.get_parser")
-    def test_process_site_single_file(self, mock_get_parser, mock_processor_class):
-        mock_parser = MagicMock()
-        mock_get_parser.return_value = mock_parser
+    @patch("main.get_extractor")
+    def test_process_site_single_file(self, mock_get_extractor, mock_processor_class):
+        mock_extractor = MagicMock()
+        mock_get_extractor.return_value = mock_extractor
 
         mock_processor = MagicMock()
         mock_processor.process_file.return_value = Path("/tmp/output.csv")
@@ -95,10 +93,10 @@ class TestProcessSite:
 
 class TestReprocessSite:
     @patch("main.Processor")
-    @patch("main.get_parser")
-    def test_reprocess_site_all(self, mock_get_parser, mock_processor_class):
-        mock_parser = MagicMock()
-        mock_get_parser.return_value = mock_parser
+    @patch("main.get_extractor")
+    def test_reprocess_site_all(self, mock_get_extractor, mock_processor_class):
+        mock_extractor = MagicMock()
+        mock_get_extractor.return_value = mock_extractor
 
         mock_processor = MagicMock()
         mock_processor.reprocess_all.return_value = [Path("/tmp/a.csv")]
@@ -110,10 +108,10 @@ class TestReprocessSite:
         mock_processor.reprocess_all.assert_called_once_with("overwrite")
 
     @patch("main.Processor")
-    @patch("main.get_parser")
-    def test_reprocess_site_folder(self, mock_get_parser, mock_processor_class):
-        mock_parser = MagicMock()
-        mock_get_parser.return_value = mock_parser
+    @patch("main.get_extractor")
+    def test_reprocess_site_folder(self, mock_get_extractor, mock_processor_class):
+        mock_extractor = MagicMock()
+        mock_get_extractor.return_value = mock_extractor
 
         mock_processor = MagicMock()
         mock_processor.reprocess_folder.return_value = [Path("/tmp/a.csv")]
@@ -125,10 +123,10 @@ class TestReprocessSite:
         mock_processor.reprocess_folder.assert_called_once_with("sofia", "overwrite")
 
     @patch("main.Processor")
-    @patch("main.get_parser")
-    def test_reprocess_site_single_file(self, mock_get_parser, mock_processor_class):
-        mock_parser = MagicMock()
-        mock_get_parser.return_value = mock_parser
+    @patch("main.get_extractor")
+    def test_reprocess_site_single_file(self, mock_get_extractor, mock_processor_class):
+        mock_extractor = MagicMock()
+        mock_get_extractor.return_value = mock_extractor
 
         mock_processor = MagicMock()
         mock_processor.reprocess_file.return_value = Path("/tmp/output.csv")
@@ -140,10 +138,10 @@ class TestReprocessSite:
         mock_processor.reprocess_file.assert_called_once_with(Path("/tmp/input.csv"), "overwrite")
 
     @patch("main.Processor")
-    @patch("main.get_parser")
-    def test_reprocess_site_new_mode(self, mock_get_parser, mock_processor_class):
-        mock_parser = MagicMock()
-        mock_get_parser.return_value = mock_parser
+    @patch("main.get_extractor")
+    def test_reprocess_site_new_mode(self, mock_get_extractor, mock_processor_class):
+        mock_extractor = MagicMock()
+        mock_get_extractor.return_value = mock_extractor
 
         mock_processor = MagicMock()
         mock_processor.reprocess_all.return_value = []
@@ -217,6 +215,7 @@ class TestMainIntegration:
             folder="sofia",
             file_path=None,
             output_mode="overwrite",
+            all_history=False,
         )
 
     @patch("main.download_site")

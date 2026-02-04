@@ -1,29 +1,46 @@
-from src.sites.alobg import AloBgParser
-from src.sites.bazarbg import BazarBgParser
-from src.sites.bulgarianproperties import BulgarianPropertiesParser
-from src.sites.homesbg import HomesBgParser
-from src.sites.imotbg import ImotBgParser
-from src.sites.imoticom import ImotiComParser
-from src.sites.imotinet import ImotiNetParser
-from src.sites.luximmo import LuximmoParser
-from src.sites.suprimmo import SuprimmoParser
+"""
+Site extractors registry.
 
-SITE_PARSERS = {
-    "AloBg": AloBgParser,
-    "BazarBg": BazarBgParser,
-    "BulgarianProperties": BulgarianPropertiesParser,
-    "HomesBg": HomesBgParser,
-    "ImotiCom": ImotiComParser,
-    "ImotBg": ImotBgParser,
-    "ImotiNet": ImotiNetParser,
-    "ImotiNetPlovdiv": ImotiNetParser,
-    "Luximmo": LuximmoParser,
-    "Suprimmo": SuprimmoParser,
+Maps site names to their extractor classes.
+"""
+
+from src.sites.alobg import AloBgExtractor
+from src.sites.bazarbg import BazarBgExtractor
+from src.sites.bulgarianproperties import BulgarianPropertiesExtractor
+from src.sites.homesbg import HomesBgExtractor
+from src.sites.imotbg import ImotBgExtractor
+from src.sites.imoticom import ImotiComExtractor
+from src.sites.imotinet import ImotiNetExtractor
+from src.sites.luximmo import LuximmoExtractor
+from src.sites.suprimmo import SuprimmoExtractor
+
+SITE_EXTRACTORS = {
+    "AloBg": AloBgExtractor,
+    "BazarBg": BazarBgExtractor,
+    "BulgarianProperties": BulgarianPropertiesExtractor,
+    "HomesBg": HomesBgExtractor,
+    "ImotiCom": ImotiComExtractor,
+    "ImotBg": ImotBgExtractor,
+    "ImotiNet": ImotiNetExtractor,
+    "ImotiNetPlovdiv": ImotiNetExtractor,
+    "Luximmo": LuximmoExtractor,
+    "Suprimmo": SuprimmoExtractor,
 }
 
 
-def get_parser(site_name: str):
-    parser_class = SITE_PARSERS.get(site_name)
-    if not parser_class:
+def get_extractor(site_name: str):
+    """Get extractor instance for a site.
+
+    Args:
+        site_name: Name of the site (e.g., "ImotBg", "HomesBg")
+
+    Returns:
+        Extractor instance for the site
+
+    Raises:
+        ValueError: If site name is unknown
+    """
+    extractor_class = SITE_EXTRACTORS.get(site_name)
+    if not extractor_class:
         raise ValueError(f"Unknown site: {site_name}")
-    return parser_class()
+    return extractor_class()

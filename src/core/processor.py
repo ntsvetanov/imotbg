@@ -1,48 +1,86 @@
 import math
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
 
-from src.core.normalization import clear_unknown_values, log_unknown_values_summary
-from src.core.parser import BaseParser
+from src.core.extractor import BaseExtractor
+from src.core.models import RawListing
+from src.core.transformer import Transformer
 from src.logger_setup import get_logger
 from src.utils import get_now_for_filename, get_year_month_path
 
 logger = get_logger(__name__)
 
 
-def clean_raw_record(record: dict) -> dict:
+def _clean_raw_value(value) -> str | None:
+    """Clean a raw CSV value for RawListing construction."""
+    if value is None:
+        return None
+    if isinstance(value, float):
+        if math.isnan(value):
+            return None
+        return str(value) if value != int(value) else str(int(value))
+    if isinstance(value, int):
+        return str(value)
+    return str(value) if value else None
+
+
+def _record_to_raw_listing(record: dict) -> RawListing:
+    """Convert a CSV record dict to a RawListing object."""
+    # Clean up NaN values and convert types
     cleaned = {}
     for key, value in record.items():
-        if isinstance(value, float):
-            cleaned[key] = None if math.isnan(value) else str(value)
-        elif isinstance(value, int):
-            cleaned[key] = str(value)
+        if key == "scraped_at" and value and not pd.isna(value):
+            # Parse datetime string
+            try:
+                if isinstance(value, str):
+                    cleaned[key] = datetime.fromisoformat(value)
+                else:
+                    cleaned[key] = value
+            except (ValueError, TypeError):
+                cleaned[key] = None
+        elif key in ("num_photos", "total_offers") and value is not None and not pd.isna(value):
+            # Integer fields
+            try:
+                cleaned[key] = int(float(value))
+            except (ValueError, TypeError):
+                cleaned[key] = None
+        elif pd.isna(value) if hasattr(pd, "isna") else (isinstance(value, float) and math.isnan(value)):
+            cleaned[key] = None
         else:
-            cleaned[key] = value
-    return cleaned
+            cleaned[key] = value if value else None
+
+    return RawListing(**cleaned)
 
 
 class Processor:
-    def __init__(self, parser: BaseParser, base_path: str = "results", year_month_override: str | None = None):
-        self.parser = parser
-        self.site_name = parser.config.name
+    """Processes raw listing files into normalized data."""
+
+    def __init__(self, extractor: BaseExtractor, base_path: str = "results", year_month_override: str | None = None):
+        self.extractor = extractor
+        self.site_name = extractor.config.name
         self.base_path = Path(base_path)
         self.year_month_override = year_month_override
+        self.transformer = Transformer()
 
     def _raw_dir(self) -> Path:
+        """Get path to raw data directory."""
         year_month = self.year_month_override or get_year_month_path()
         return self.base_path / year_month / "raw" / self.site_name
 
     def _processed_dir(self) -> Path:
+        """Get path to processed data directory."""
         year_month = self.year_month_override or get_year_month_path()
         return self.base_path / year_month / "processed" / self.site_name
 
     def _get_output_path(self, raw_file: Path) -> Path:
+        """Get output path for a raw file."""
         rel_path = raw_file.relative_to(self._raw_dir())
         return self._processed_dir() / rel_path
 
     def get_unprocessed_files(self) -> list[Path]:
+        """Find raw files that haven't been processed yet."""
         raw_dir = self._raw_dir()
         if not raw_dir.exists():
             return []
@@ -54,8 +92,15 @@ class Processor:
         return sorted(unprocessed)
 
     def process_file(self, raw_file: Path) -> Path | None:
+        """Process a single raw file through the transformer.
+
+        Args:
+            raw_file: Path to raw CSV file
+
+        Returns:
+            Path to processed file, or None if processing failed
+        """
         logger.info(f"[{self.site_name}] Processing {raw_file}")
-        clear_unknown_values()
 
         raw_df = pd.read_csv(raw_file)
         if raw_df.empty:
@@ -65,9 +110,11 @@ class Processor:
         processed = []
         for record in raw_df.to_dict("records"):
             try:
-                cleaned = clean_raw_record(record)
-                transformed = self.parser.transform_listing(cleaned).model_dump()
-                processed.append(transformed)
+                # Convert record to RawListing
+                raw_listing = _record_to_raw_listing(record)
+                # Transform to ListingData
+                listing_data = self.transformer.transform(raw_listing)
+                processed.append(listing_data.model_dump())
             except Exception as e:
                 logger.warning(f"[{self.site_name}] Transform failed: {e}")
 
@@ -79,11 +126,15 @@ class Processor:
         output_file.parent.mkdir(parents=True, exist_ok=True)
         pd.DataFrame(processed).to_csv(output_file, index=False, encoding="utf-8")
 
-        log_unknown_values_summary()
         logger.info(f"[{self.site_name}] Saved {len(processed)} listings to {output_file}")
         return output_file
 
     def process_all_unprocessed(self) -> list[Path]:
+        """Process all unprocessed raw files.
+
+        Returns:
+            List of paths to processed files
+        """
         unprocessed = self.get_unprocessed_files()
         if not unprocessed:
             logger.info(f"[{self.site_name}] No unprocessed files")
@@ -98,6 +149,15 @@ class Processor:
         return results
 
     def reprocess_file(self, raw_file: Path, output_mode: str = "overwrite") -> Path | None:
+        """Reprocess a file with updated transformer.
+
+        Args:
+            raw_file: Path to raw CSV file
+            output_mode: "overwrite" to replace existing, "new" to create new file
+
+        Returns:
+            Path to processed file, or None if processing failed
+        """
         if output_mode == "overwrite":
             return self.process_file(raw_file)
 
@@ -112,6 +172,15 @@ class Processor:
         return new_path
 
     def reprocess_folder(self, folder: str, output_mode: str = "overwrite") -> list[Path]:
+        """Reprocess all files in a folder.
+
+        Args:
+            folder: Subfolder name within raw directory
+            output_mode: "overwrite" or "new"
+
+        Returns:
+            List of paths to processed files
+        """
         folder_path = self._raw_dir() / folder
         if not folder_path.exists():
             logger.error(f"[{self.site_name}] Folder not found: {folder_path}")
@@ -125,6 +194,14 @@ class Processor:
         return results
 
     def reprocess_all(self, output_mode: str = "overwrite") -> list[Path]:
+        """Reprocess all raw files.
+
+        Args:
+            output_mode: "overwrite" or "new"
+
+        Returns:
+            List of paths to processed files
+        """
         raw_dir = self._raw_dir()
         if not raw_dir.exists():
             logger.error(f"[{self.site_name}] Directory not found: {raw_dir}")

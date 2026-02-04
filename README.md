@@ -6,9 +6,15 @@ Scrapes property listings from Bulgarian real estate websites and saves results 
 
 | Site | Type | URL |
 |------|------|-----|
-| imot.bg | HTML | https://www.imot.bg |
-| imoti.net | HTML | https://www.imoti.net |
-| homes.bg | JSON API | https://www.homes.bg |
+| AloBg | HTML | https://www.alo.bg |
+| BazarBg | HTML | https://bazar.bg |
+| BulgarianProperties | HTML | https://www.bulgarianproperties.com |
+| HomesBg | JSON API | https://www.homes.bg |
+| ImotBg | HTML | https://www.imot.bg |
+| ImotiCom | HTML | https://imoti.com |
+| ImotiNet | HTML | https://www.imoti.net |
+| Luximmo | HTML | https://www.luximmo.bg |
+| Suprimmo | HTML | https://suprimmo.bg |
 
 ## Installation
 
@@ -18,42 +24,79 @@ pip install -r requirements.txt
 
 ## Usage
 
+### Scrape (Download + Process)
+
 Run all scrapers:
 ```bash
-python main.py
+python main.py scrape
 ```
 
-Run a specific scraper:
+Run a specific site:
 ```bash
-python main.py --scraper_name ImotBg
-python main.py --scraper_name ImotiNet
-python main.py --scraper_name HomesBg
+python main.py scrape --site ImotBg
+python main.py scrape --site HomesBg
+python main.py scrape --site Suprimmo
 ```
 
-Scrape a specific URL directly (prints to console):
+### Download Only (Raw Data)
+
 ```bash
-python main.py --scraper_name ImotBg --url "https://www.imot.bg/obiavi/prodazhbi/grad-sofiya/mezonet?raioni=21~22~23~57~60~63~72~80~81~85~86~120~132~146~147~6101~"
-python main.py --scraper_name HomesBg --url https://www.homes.bg/api/offers\?currencyId\=1\&filterOrderBy\=0\&locationId\=1\&typeId\=ApartmentSell\&neighbourhoods%5B%5D\=487
-python main.py --scraper_name ImotiNet --url "https://www.imoti.net/bg/obiavi/r/prodava/sofia/?page=12&sid=gFM8jD"
+python main.py download --site ImotBg
 ```
 
-Save results to file when using --url:
+### Process Only (Transform Raw Data)
+
 ```bash
-python main.py --scraper_name ImotBg --url "https://www.imot.bg/..." --save
+python main.py process --site ImotBg
+```
+
+### Reprocess Historical Data
+
+Reprocess with updated transformer logic:
+```bash
+# Reprocess a specific folder
+python main.py reprocess --site ImotBg --folder sofia
+
+# Reprocess a specific file
+python main.py reprocess --site ImotBg --file results/raw/ImotBg/sofia/2024-01-15.csv
+
+# Reprocess all historical data
+python main.py reprocess --site ImotBg --all
+
+# Output to new files instead of overwriting
+python main.py reprocess --site ImotBg --folder sofia --output new
+```
+
+### Custom Output Folder
+
+```bash
+python main.py scrape --site ImotBg --result_folder output
+```
+
+### Fetch Single URL (Quick Test)
+
+Fetch a URL and output results to console:
+```bash
+# Basic fetch (outputs table to console)
+python main.py fetch --site Suprimmo --url "https://www.suprimmo.bg/prodajba/..."
+
+# Limit pages for faster results
+python main.py fetch --site Suprimmo --url "https://www.suprimmo.bg/prodajba/..." --pages 1
+
+# Also save to CSV file
+python main.py fetch --site ImotBg --url "https://www.imot.bg/obiavi/..." --save
+
+# Save to specific file
+python main.py fetch --site HomesBg --url "https://www.homes.bg/api/..." --save --output results.csv
 ```
 
 Example output:
 ```
-Found 25 listings:
+Fetched 24 listings from Suprimmo:
 
-  price currency    city neighborhood property_type                                        details_url
- 150000      EUR   София     Лозенец     двустаен  https://www.imot.bg/pcgi/imot.cgi?act=5&adession=...
- 180000      EUR   София      Изгрев    тристаен  https://www.imot.bg/pcgi/imot.cgi?act=5&adession=...
-```
-
-Custom output folder:
-```bash
-python main.py --scraper_name ImotBg --result_folder output
+    price original_currency   city   neighborhood property_type   area floor  details_url
+ 185000.0               EUR  София  Сухата река      двустаен   74.0       https://...
+ 480000.0               EUR  София      Лозенец      тристаен  110.9       https://...
 ```
 
 ## Configuration
@@ -69,16 +112,16 @@ Edit `url_configs.json` to configure search URLs for each site:
             {"url": "https://www.imot.bg/obiavi/prodazhbi/...", "name": "Sofia Apartments"}
         ]
     },
-    "ImotiNet": {
-        "urls": [
-            {"url": "https://www.imoti.net/bg/obiavi/...", "name": "Search 1"}
-        ]
-    },
     "HomesBg": {
         "neighborhoods": [
             {"id": 487, "name": "Lozenets"}
         ],
         "include_land": true
+    },
+    "Suprimmo": {
+        "urls": [
+            {"url": "https://suprimmo.bg/...", "name": "Sofia Sales"}
+        ]
     }
 }
 ```
@@ -97,37 +140,75 @@ export MAILTRAP_TOKEN=your_token
 ## Output
 
 Results are saved to:
-- `results/raw/{site}/` - Raw scraped data
+- `results/raw/{site}/` - Raw extracted data (before transformation)
 - `results/processed/{site}/` - Transformed data with normalized fields
 
+### Output Fields
+
+All prices are converted to EUR. The output includes:
+
+| Field | Description |
+|-------|-------------|
+| `site` | Source website |
+| `price` | Price in EUR |
+| `original_currency` | Original currency (EUR/BGN) |
+| `price_per_m2` | Price per square meter |
+| `city` | Normalized city name |
+| `neighborhood` | Normalized neighborhood |
+| `property_type` | Type (едностаен, двустаен, etc.) |
+| `offer_type` | Sale or rent |
+| `area` | Area in m² |
+| `floor` | Floor number |
+| `details_url` | Link to listing |
+| `fingerprint_hash` | Duplicate detection hash |
+
 ## Architecture
+
+The scraper uses a two-stage pipeline: **Extractor** (site-specific) → **Transformer** (site-agnostic).
 
 ```
 src/
 ├── core/
-│   ├── parser.py      # BaseParser ABC, Field dataclass
-│   ├── scraper.py     # GenericScraper
-│   ├── transforms.py  # Transform functions
-│   └── models.py      # ListingData Pydantic model
+│   ├── extractor.py    # BaseExtractor ABC, SiteConfig
+│   ├── transformer.py  # Site-agnostic normalization
+│   ├── models.py       # RawListing, ListingData models
+│   ├── downloader.py   # Download orchestration
+│   ├── processor.py    # Processing orchestration
+│   └── enums.py        # City, Neighborhood, PropertyType enums
 ├── sites/
-│   ├── imotbg.py      # imot.bg parser
-│   ├── imotinet.py    # imoti.net parser
-│   └── homesbg.py     # homes.bg parser
+│   ├── imotbg.py       # ImotBgExtractor
+│   ├── imotinet.py     # ImotiNetExtractor
+│   ├── homesbg.py      # HomesBgExtractor
+│   ├── suprimmo.py     # SuprimmoExtractor
+│   ├── luximmo.py      # LuximmoExtractor
+│   ├── alobg.py        # AloBgExtractor
+│   ├── bazarbg.py      # BazarBgExtractor
+│   ├── bulgarianproperties.py  # BulgarianPropertiesExtractor
+│   └── imoticom.py     # ImotiComExtractor
 └── infrastructure/
     └── clients/
         ├── http_client.py
         └── email_client.py
 ```
 
+### Data Flow
+
+```
+HTML/JSON → Extractor.extract_listings() → RawListing → Transformer.transform() → ListingData → CSV
+```
+
+1. **Extractor**: Parses site-specific HTML/JSON into `RawListing` (raw text fields)
+2. **Transformer**: Normalizes `RawListing` into `ListingData` (parsed, validated, EUR prices)
+
 ### Adding a New Site
 
 1. Create `src/sites/newsite.py`:
 
 ```python
-from src.core.parser import BaseParser, Field, SiteConfig
-from src.core.transforms import parse_price, extract_currency
+from src.core.extractor import BaseExtractor, SiteConfig
+from src.core.models import RawListing
 
-class NewSiteParser(BaseParser):
+class NewSiteExtractor(BaseExtractor):
     config = SiteConfig(
         name="newsite",
         base_url="https://newsite.bg",
@@ -136,35 +217,37 @@ class NewSiteParser(BaseParser):
         rate_limit_seconds=1.0,
     )
 
-    class Fields:
-        price = Field("price_text", parse_price)
-        currency = Field("price_text", extract_currency)
-        # ... more fields
-
     @staticmethod
     def build_urls(config: dict) -> list[str]:
         return [item["url"] for item in config.get("urls", [])]
 
     def extract_listings(self, soup):
         for item in soup.select(".listing"):
-            yield {
-                "price_text": self.get_text(".price", item),
+            yield RawListing(
+                site=self.config.name,
+                price_text=self._get_text(".price", item),
+                location_text=self._get_text(".location", item),
+                title=self._get_text(".title", item),
+                area_text=self._get_text(".area", item),
+                floor_text=self._get_text(".floor", item),
+                details_url=self._get_attr("a", "href", item),
                 # ... more fields
-            }
+            )
 
     def get_next_page_url(self, soup, current_url, page_number):
-        # Return next page URL or None
-        pass
+        # Return next page URL or None to stop pagination
+        next_link = soup.select_one("a.next")
+        return next_link["href"] if next_link else None
 ```
 
 2. Register in `src/sites/__init__.py`:
 
 ```python
-from src.sites.newsite import NewSiteParser
+from src.sites.newsite import NewSiteExtractor
 
-SITE_PARSERS = {
+SITE_EXTRACTORS = {
     # ...
-    "NewSite": NewSiteParser,
+    "NewSite": NewSiteExtractor,
 }
 ```
 
@@ -173,8 +256,14 @@ SITE_PARSERS = {
 ## Testing
 
 ```bash
+# Run all tests
 pytest
+
+# Run with coverage
 pytest --cov=src --cov-report=term-missing
+
+# Run specific test file
+pytest tests/test_imotbg.py -v
 ```
 
 ## GitHub Actions

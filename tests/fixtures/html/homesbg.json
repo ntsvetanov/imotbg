@@ -1,0 +1,1126 @@
+{
+  "result": [
+    {
+      "id": "1645471",
+      "type": "as",
+      "viewHref": "/offer/apartament-za-prodazhba/dvustaen-68m2-sofiya-oborishte/as1645471",
+      "time": "днес",
+      "location": " Оборище, София",
+      "title": "Двустаен, 68m²",
+      "description": "ТЕЦ",
+      "status": 1,
+      "photos": [
+        {
+          "name": "117238976",
+          "path": "2026-01-15_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117238978",
+          "path": "2026-01-15_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117238980",
+          "path": "2026-01-15_2/",
+          "width": 252,
+          "height": 336
+        },
+        {
+          "name": "117238982",
+          "path": "2026-01-15_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117238984",
+          "path": "2026-01-15_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117238986",
+          "path": "2026-01-15_2/",
+          "width": 252,
+          "height": 336
+        },
+        {
+          "name": "117238988",
+          "path": "2026-01-15_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117238989",
+          "path": "2026-01-15_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117238991",
+          "path": "2026-01-15_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117238993",
+          "path": "2026-01-15_2/",
+          "width": 252,
+          "height": 336
+        }
+      ],
+      "photo": {
+        "name": "117238976",
+        "path": "2026-01-15_2/",
+        "width": 448,
+        "height": 336
+      },
+      "price": {
+        "value": "320,000",
+        "currency": "EUR",
+        "price_per_square_meter": "4,705 EUR/m²",
+        "period": null
+      },
+      "isFav": false
+    },
+    {
+      "id": "1663075",
+      "type": "as",
+      "viewHref": "/offer/apartament-za-prodazhba/tristaen-100m2-sofiya-oborishte/as1663075",
+      "time": "днес",
+      "location": " Оборище, София",
+      "title": "Тристаен, 100m²",
+      "description": "Тухла, ТЕЦ",
+      "status": 1,
+      "photos": [
+        {
+          "name": "117512625",
+          "path": "2026-02-02_2/",
+          "width": 448,
+          "height": 235
+        }
+      ],
+      "photo": {
+        "name": "117512625",
+        "path": "2026-02-02_2/",
+        "width": 448,
+        "height": 235
+      },
+      "price": {
+        "value": "425,000",
+        "currency": "EUR",
+        "price_per_square_meter": "4,250 EUR/m²",
+        "period": null
+      },
+      "isFav": false
+    },
+    {
+      "id": "1616667",
+      "type": "as",
+      "viewHref": "/offer/apartament-za-prodazhba/tristaen-138m2-sofiya-oborishte/as1616667",
+      "time": "днес",
+      "location": " Оборище, София",
+      "title": "Тристаен, 138m²",
+      "description": "Тухла",
+      "status": 1,
+      "photos": [
+        {
+          "name": "117471123",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471126",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471128",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471130",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        }
+      ],
+      "photo": {
+        "name": "117471123",
+        "path": "2026-01-30_2/",
+        "width": 448,
+        "height": 336
+      },
+      "price": {
+        "value": "430,200",
+        "currency": "EUR",
+        "price_per_square_meter": "3,117 EUR/m²",
+        "period": null
+      },
+      "isFav": false
+    },
+    {
+      "id": "1614433",
+      "type": "as",
+      "viewHref": "/offer/apartament-za-prodazhba/chetiristaen-196m2-sofiya-oborishte/as1614433",
+      "time": "днес",
+      "location": " Оборище, София",
+      "title": "Четиристаен, 196m²",
+      "description": "Тухла",
+      "status": 1,
+      "photos": [
+        {
+          "name": "117471165",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471168",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471170",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        }
+      ],
+      "photo": {
+        "name": "117471165",
+        "path": "2026-01-30_2/",
+        "width": 448,
+        "height": 336
+      },
+      "price": {
+        "value": "620,235",
+        "currency": "EUR",
+        "price_per_square_meter": "3,164 EUR/m²",
+        "period": null
+      },
+      "isFav": false
+    },
+    {
+      "id": "1614434",
+      "type": "as",
+      "viewHref": "/offer/apartament-za-prodazhba/chetiristaen-195m2-sofiya-oborishte/as1614434",
+      "time": "днес",
+      "location": " Оборище, София",
+      "title": "Четиристаен, 195m²",
+      "description": "Тухла",
+      "status": 1,
+      "photos": [
+        {
+          "name": "117471174",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471176",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471178",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        }
+      ],
+      "photo": {
+        "name": "117471174",
+        "path": "2026-01-30_2/",
+        "width": 448,
+        "height": 336
+      },
+      "price": {
+        "value": "595,840",
+        "currency": "EUR",
+        "price_per_square_meter": "3,055 EUR/m²",
+        "period": null
+      },
+      "isFav": false
+    },
+    {
+      "id": "1614435",
+      "type": "as",
+      "viewHref": "/offer/apartament-za-prodazhba/chetiristaen-194m2-sofiya-oborishte/as1614435",
+      "time": "днес",
+      "location": " Оборище, София",
+      "title": "Четиристаен, 194m²",
+      "description": "Тухла",
+      "status": 1,
+      "photos": [
+        {
+          "name": "117512951",
+          "path": "2026-02-02_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117512952",
+          "path": "2026-02-02_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117512954",
+          "path": "2026-02-02_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117512956",
+          "path": "2026-02-02_2/",
+          "width": 448,
+          "height": 336
+        }
+      ],
+      "photo": {
+        "name": "117512951",
+        "path": "2026-02-02_2/",
+        "width": 448,
+        "height": 336
+      },
+      "price": {
+        "value": "576,790",
+        "currency": "EUR",
+        "price_per_square_meter": "2,973 EUR/m²",
+        "period": null
+      },
+      "isFav": false
+    },
+    {
+      "id": "1614436",
+      "type": "as",
+      "viewHref": "/offer/apartament-za-prodazhba/chetiristaen-191m2-sofiya-oborishte/as1614436",
+      "time": "днес",
+      "location": " Оборище, София",
+      "title": "Четиристаен, 191m²",
+      "description": "Тухла",
+      "status": 1,
+      "photos": [
+        {
+          "name": "117471180",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471182",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471185",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471187",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        }
+      ],
+      "photo": {
+        "name": "117471180",
+        "path": "2026-01-30_2/",
+        "width": 448,
+        "height": 336
+      },
+      "price": {
+        "value": "626,000",
+        "currency": "EUR",
+        "price_per_square_meter": "3,277 EUR/m²",
+        "period": null
+      },
+      "isFav": false
+    },
+    {
+      "id": "1614439",
+      "type": "as",
+      "viewHref": "/offer/apartament-za-prodazhba/tristaen-148m2-sofiya-oborishte/as1614439",
+      "time": "днес",
+      "location": " Оборище, София",
+      "title": "Тристаен, 148m²",
+      "description": "Тухла",
+      "status": 1,
+      "photos": [
+        {
+          "name": "117471210",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471212",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471214",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471216",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471218",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471220",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        }
+      ],
+      "photo": {
+        "name": "117471210",
+        "path": "2026-01-30_2/",
+        "width": 448,
+        "height": 336
+      },
+      "price": {
+        "value": "485,900",
+        "currency": "EUR",
+        "price_per_square_meter": "3,283 EUR/m²",
+        "period": null
+      },
+      "isFav": false
+    },
+    {
+      "id": "1641907",
+      "type": "as",
+      "viewHref": "/offer/apartament-za-prodazhba/chetiristaen-180m2-sofiya-oborishte/as1641907",
+      "time": "днес",
+      "location": " Оборище, София",
+      "title": "Четиристаен, 180m²",
+      "description": "Тухла",
+      "status": 1,
+      "photos": [
+        {
+          "name": "117470857",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117470859",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117470861",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117470863",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117470865",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117470867",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117470869",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117470871",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        }
+      ],
+      "photo": {
+        "name": "117470857",
+        "path": "2026-01-30_2/",
+        "width": 448,
+        "height": 336
+      },
+      "price": {
+        "value": "531,700",
+        "currency": "EUR",
+        "price_per_square_meter": "2,953 EUR/m²",
+        "period": null
+      },
+      "isFav": false
+    },
+    {
+      "id": "1652163",
+      "type": "as",
+      "viewHref": "/offer/apartament-za-prodazhba/dvustaen-65m2-sofiya-oborishte/as1652163",
+      "time": "днес",
+      "location": " Оборище, София",
+      "title": "Двустаен, 65m²",
+      "description": "Тухла, ТЕЦ",
+      "status": 1,
+      "photos": [
+        {
+          "name": "117512728",
+          "path": "2026-02-02_2/",
+          "width": 448,
+          "height": 202
+        },
+        {
+          "name": "117512730",
+          "path": "2026-02-02_2/",
+          "width": 151,
+          "height": 336
+        },
+        {
+          "name": "117512732",
+          "path": "2026-02-02_2/",
+          "width": 448,
+          "height": 202
+        },
+        {
+          "name": "117512734",
+          "path": "2026-02-02_2/",
+          "width": 448,
+          "height": 202
+        },
+        {
+          "name": "117512736",
+          "path": "2026-02-02_2/",
+          "width": 448,
+          "height": 202
+        },
+        {
+          "name": "117512739",
+          "path": "2026-02-02_2/",
+          "width": 151,
+          "height": 336
+        },
+        {
+          "name": "117512741",
+          "path": "2026-02-02_2/",
+          "width": 151,
+          "height": 336
+        },
+        {
+          "name": "117512743",
+          "path": "2026-02-02_2/",
+          "width": 151,
+          "height": 336
+        },
+        {
+          "name": "117512746",
+          "path": "2026-02-02_2/",
+          "width": 151,
+          "height": 336
+        }
+      ],
+      "photo": {
+        "name": "117512728",
+        "path": "2026-02-02_2/",
+        "width": 448,
+        "height": 202
+      },
+      "price": {
+        "value": "265,000",
+        "currency": "EUR",
+        "price_per_square_meter": "4,076 EUR/m²",
+        "period": null
+      },
+      "isFav": false
+    },
+    {
+      "id": "1616663",
+      "type": "as",
+      "viewHref": "/offer/apartament-za-prodazhba/tristaen-147m2-sofiya-oborishte/as1616663",
+      "time": "днес",
+      "location": " Оборище, София",
+      "title": "Тристаен, 147m²",
+      "description": "Тухла",
+      "status": 1,
+      "photos": [
+        {
+          "name": "117471098",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471100",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471102",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471104",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        }
+      ],
+      "photo": {
+        "name": "117471098",
+        "path": "2026-01-30_2/",
+        "width": 448,
+        "height": 336
+      },
+      "price": {
+        "value": "487,500",
+        "currency": "EUR",
+        "price_per_square_meter": "3,316 EUR/m²",
+        "period": null
+      },
+      "isFav": false
+    },
+    {
+      "id": "1616664",
+      "type": "as",
+      "viewHref": "/offer/apartament-za-prodazhba/tristaen-135m2-sofiya-oborishte/as1616664",
+      "time": "днес",
+      "location": " Оборище, София",
+      "title": "Тристаен, 135m²",
+      "description": "Тухла",
+      "status": 1,
+      "photos": [
+        {
+          "name": "117471107",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471109",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471111",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471113",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        }
+      ],
+      "photo": {
+        "name": "117471107",
+        "path": "2026-01-30_2/",
+        "width": 448,
+        "height": 336
+      },
+      "price": {
+        "value": "447,750",
+        "currency": "EUR",
+        "price_per_square_meter": "3,316 EUR/m²",
+        "period": null
+      },
+      "isFav": false
+    },
+    {
+      "id": "1616672",
+      "type": "as",
+      "viewHref": "/offer/apartament-za-prodazhba/chetiristaen-155m2-sofiya-oborishte/as1616672",
+      "time": "днес",
+      "location": " Оборище, София",
+      "title": "Четиристаен, 155m²",
+      "description": "Тухла",
+      "status": 1,
+      "photos": [
+        {
+          "name": "117471146",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471148",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        }
+      ],
+      "photo": {
+        "name": "117471146",
+        "path": "2026-01-30_2/",
+        "width": 448,
+        "height": 336
+      },
+      "price": {
+        "value": "595,000",
+        "currency": "EUR",
+        "price_per_square_meter": "3,838 EUR/m²",
+        "period": null
+      },
+      "isFav": false
+    },
+    {
+      "id": "1614437",
+      "type": "as",
+      "viewHref": "/offer/apartament-za-prodazhba/chetiristaen-184m2-sofiya-oborishte/as1614437",
+      "time": "днес",
+      "location": " Оборище, София",
+      "title": "Четиристаен, 184m²",
+      "description": "Тухла",
+      "status": 1,
+      "photos": [
+        {
+          "name": "117471189",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471192",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471194",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471196",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471199",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        }
+      ],
+      "photo": {
+        "name": "117471189",
+        "path": "2026-01-30_2/",
+        "width": 448,
+        "height": 336
+      },
+      "price": {
+        "value": "680,060",
+        "currency": "EUR",
+        "price_per_square_meter": "3,695 EUR/m²",
+        "period": null
+      },
+      "isFav": false
+    },
+    {
+      "id": "1614440",
+      "type": "as",
+      "viewHref": "/offer/apartament-za-prodazhba/tristaen-144m2-sofiya-oborishte/as1614440",
+      "time": "днес",
+      "location": " Оборище, София",
+      "title": "Тристаен, 144m²",
+      "description": "Тухла",
+      "status": 1,
+      "photos": [
+        {
+          "name": "117471223",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471225",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471227",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471229",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471231",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471233",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        }
+      ],
+      "photo": {
+        "name": "117471223",
+        "path": "2026-01-30_2/",
+        "width": 448,
+        "height": 336
+      },
+      "price": {
+        "value": "472,200",
+        "currency": "EUR",
+        "price_per_square_meter": "3,279 EUR/m²",
+        "period": null
+      },
+      "isFav": false
+    },
+    {
+      "id": "1652132",
+      "type": "as",
+      "viewHref": "/offer/apartament-za-prodazhba/tristaen-118m2-sofiya-oborishte/as1652132",
+      "time": "днес",
+      "location": " Оборище, София",
+      "title": "Тристаен, 118m²",
+      "description": "Тухла, Електричество",
+      "status": 1,
+      "photos": [
+        {
+          "name": "117512785",
+          "path": "2026-02-02_2/",
+          "width": 448,
+          "height": 252
+        },
+        {
+          "name": "117512787",
+          "path": "2026-02-02_2/",
+          "width": 448,
+          "height": 252
+        }
+      ],
+      "photo": {
+        "name": "117512785",
+        "path": "2026-02-02_2/",
+        "width": 448,
+        "height": 252
+      },
+      "price": {
+        "value": "460,000",
+        "currency": "EUR",
+        "price_per_square_meter": "3,898 EUR/m²",
+        "period": null
+      },
+      "isFav": false
+    },
+    {
+      "id": "1668322",
+      "type": "as",
+      "viewHref": "/offer/apartament-za-prodazhba/dvustaen-58m2-sofiya-oborishte/as1668322",
+      "time": "днес",
+      "location": " Оборище, София",
+      "title": "Двустаен, 58m²",
+      "description": "Тухла, Електричество",
+      "status": 1,
+      "photos": [
+        {
+          "name": "117496693",
+          "path": "2026-02-01_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117496694",
+          "path": "2026-02-01_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117496695",
+          "path": "2026-02-01_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117496696",
+          "path": "2026-02-01_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117496697",
+          "path": "2026-02-01_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117496698",
+          "path": "2026-02-01_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117496699",
+          "path": "2026-02-01_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117496700",
+          "path": "2026-02-01_2/",
+          "width": 252,
+          "height": 336
+        },
+        {
+          "name": "117496701",
+          "path": "2026-02-01_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117496702",
+          "path": "2026-02-01_2/",
+          "width": 252,
+          "height": 336
+        }
+      ],
+      "photo": {
+        "name": "117496693",
+        "path": "2026-02-01_2/",
+        "width": 448,
+        "height": 336
+      },
+      "price": {
+        "value": "250,000",
+        "currency": "EUR",
+        "price_per_square_meter": "4,310 EUR/m²",
+        "period": null
+      },
+      "isFav": false
+    },
+    {
+      "id": "1664090",
+      "type": "as",
+      "viewHref": "/offer/apartament-za-prodazhba/dvustaen-74m2-sofiya-oborishte/as1664090",
+      "time": "днес",
+      "location": " Оборище, София",
+      "title": "Двустаен, 74m²",
+      "description": "Тухла, ТЕЦ",
+      "status": 1,
+      "photos": [
+        {
+          "name": "117496714",
+          "path": "2026-02-01_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117496715",
+          "path": "2026-02-01_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117496716",
+          "path": "2026-02-01_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117496717",
+          "path": "2026-02-01_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117496718",
+          "path": "2026-02-01_2/",
+          "width": 252,
+          "height": 336
+        },
+        {
+          "name": "117496719",
+          "path": "2026-02-01_2/",
+          "width": 252,
+          "height": 336
+        },
+        {
+          "name": "117496720",
+          "path": "2026-02-01_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117496721",
+          "path": "2026-02-01_2/",
+          "width": 336,
+          "height": 336
+        },
+        {
+          "name": "117496722",
+          "path": "2026-02-01_2/",
+          "width": 252,
+          "height": 336
+        },
+        {
+          "name": "117496723",
+          "path": "2026-02-01_2/",
+          "width": 252,
+          "height": 336
+        }
+      ],
+      "photo": {
+        "name": "117496714",
+        "path": "2026-02-01_2/",
+        "width": 448,
+        "height": 336
+      },
+      "price": {
+        "value": "320,000",
+        "currency": "EUR",
+        "price_per_square_meter": "4,324 EUR/m²",
+        "period": null
+      },
+      "isFav": false
+    },
+    {
+      "id": "1616669",
+      "type": "as",
+      "viewHref": "/offer/apartament-za-prodazhba/tristaen-144m2-sofiya-oborishte/as1616669",
+      "time": "днес",
+      "location": " Оборище, София",
+      "title": "Тристаен, 144m²",
+      "description": "Тухла",
+      "status": 1,
+      "photos": [
+        {
+          "name": "117471132",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471134",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471136",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471138",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        }
+      ],
+      "photo": {
+        "name": "117471132",
+        "path": "2026-01-30_2/",
+        "width": 448,
+        "height": 336
+      },
+      "price": {
+        "value": "434,700",
+        "currency": "EUR",
+        "price_per_square_meter": "3,018 EUR/m²",
+        "period": null
+      },
+      "isFav": false
+    },
+    {
+      "id": "1616671",
+      "type": "as",
+      "viewHref": "/offer/apartament-za-prodazhba/chetiristaen-178m2-sofiya-oborishte/as1616671",
+      "time": "днес",
+      "location": " Оборище, София",
+      "title": "Четиристаен, 178m²",
+      "description": "Тухла",
+      "status": 1,
+      "photos": [
+        {
+          "name": "117471140",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471142",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        },
+        {
+          "name": "117471144",
+          "path": "2026-01-30_2/",
+          "width": 448,
+          "height": 336
+        }
+      ],
+      "photo": {
+        "name": "117471140",
+        "path": "2026-01-30_2/",
+        "width": 448,
+        "height": 336
+      },
+      "price": {
+        "value": "532,800",
+        "currency": "EUR",
+        "price_per_square_meter": "2,993 EUR/m²",
+        "period": null
+      },
+      "isFav": false
+    }
+  ],
+  "hasMoreItems": true,
+  "offersCount": 192,
+  "searchHistoryCount": null,
+  "searchCriteria": {
+    "ApartmentSell": "Апартаменти продажба",
+    "locationId": "София",
+    "neighbourhoods": [
+      "Оборище"
+    ]
+  }
+}

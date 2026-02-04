@@ -1,11 +1,9 @@
 import pytest
 from bs4 import BeautifulSoup
 
-from src.sites.bazarbg import (
-    BazarBgParser,
-    extract_location_city,
-    extract_location_neighborhood,
-)
+from src.core.models import RawListing
+from src.core.transformer import Transformer
+from src.sites.bazarbg import BazarBgExtractor
 
 SAMPLE_LISTING_HTML = """
 <div class="listItemContainer">
@@ -39,131 +37,77 @@ SAMPLE_PAGE_HTML = f"""
 """
 
 
-class TestExtractLocationHelpers:
-    def test_extract_location_city(self):
-        assert extract_location_city("гр. София, Лозенец") == "София"
-
-    def test_extract_location_city_no_neighborhood(self):
-        assert extract_location_city("гр. София") == "София"
-
-    def test_extract_location_city_empty(self):
-        assert extract_location_city("") == ""
-
-    def test_extract_location_city_none(self):
-        assert extract_location_city(None) == ""
-
-    def test_extract_location_neighborhood(self):
-        assert extract_location_neighborhood("гр. София, Лозенец") == "Лозенец"
-
-    def test_extract_location_neighborhood_multiple_parts(self):
-        # Neighborhood is normalized - extra address parts are stripped
-        assert extract_location_neighborhood("гр. София, Лозенец, ул. Тест") == "Лозенец"
-
-    def test_extract_location_neighborhood_no_comma(self):
-        assert extract_location_neighborhood("гр. София") == ""
-
-    def test_extract_location_neighborhood_empty(self):
-        assert extract_location_neighborhood("") == ""
-
-    def test_extract_location_neighborhood_none(self):
-        assert extract_location_neighborhood(None) == ""
-
-
-class TestBazarBgParserConfig:
+class TestBazarBgExtractorConfig:
     def test_config_values(self):
-        parser = BazarBgParser()
-        assert parser.config.name == "bazarbg"
-        assert parser.config.base_url == "https://bazar.bg"
-        assert parser.config.encoding == "utf-8"
-        assert parser.config.rate_limit_seconds == 1.5
+        extractor = BazarBgExtractor()
+        assert extractor.config.name == "bazarbg"
+        assert extractor.config.base_url == "https://bazar.bg"
+        assert extractor.config.encoding == "utf-8"
+        assert extractor.config.rate_limit_seconds == 1.5
 
 
-class TestBazarBgParserBuildUrls:
-    def test_build_urls(self):
-        config = {
-            "urls": [
-                {"url": "https://bazar.bg/search1", "name": "Search 1"},
-                {"url": "https://bazar.bg/search2", "name": "Search 2"},
-            ]
-        }
-        urls = BazarBgParser.build_urls(config)
-        assert urls == [
-            {"url": "https://bazar.bg/search1", "name": "Search 1"},
-            {"url": "https://bazar.bg/search2", "name": "Search 2"},
-        ]
-
-    def test_build_urls_empty(self):
-        assert BazarBgParser.build_urls({}) == []
-
-
-class TestBazarBgParserExtractListings:
+class TestBazarBgExtractorExtractListings:
     @pytest.fixture
-    def parser(self):
-        return BazarBgParser()
+    def extractor(self):
+        return BazarBgExtractor()
 
     @pytest.fixture
     def soup(self):
         return BeautifulSoup(SAMPLE_PAGE_HTML, "html.parser")
 
-    def test_extract_listings_count(self, parser, soup):
-        listings = list(parser.extract_listings(soup))
+    def test_extract_listings_count(self, extractor, soup):
+        listings = list(extractor.extract_listings(soup))
         assert len(listings) == 2
 
-    def test_extract_listing_title(self, parser, soup):
-        listings = list(parser.extract_listings(soup))
-        assert listings[0]["title"] == "Продава 2-стаен апартамент"
+    def test_extract_listing_title(self, extractor, soup):
+        listings = list(extractor.extract_listings(soup))
+        assert listings[0].title == "Продава 2-стаен апартамент"
 
-    def test_extract_listing_details_url(self, parser, soup):
-        listings = list(parser.extract_listings(soup))
-        assert listings[0]["details_url"] == "/ad/12345"
+    def test_extract_listing_details_url(self, extractor, soup):
+        listings = list(extractor.extract_listings(soup))
+        assert listings[0].details_url == "https://bazar.bg/ad/12345"
 
-    def test_extract_listing_ref_no(self, parser, soup):
-        listings = list(parser.extract_listings(soup))
-        assert listings[0]["ref_no"] == "12345"
+    def test_extract_listing_ref_no(self, extractor, soup):
+        listings = list(extractor.extract_listings(soup))
+        assert listings[0].ref_no == "12345"
 
-    def test_extract_listing_price_text(self, parser, soup):
-        listings = list(parser.extract_listings(soup))
-        assert listings[0]["price_text"] == "179 000 EUR"
+    def test_extract_listing_price_text(self, extractor, soup):
+        listings = list(extractor.extract_listings(soup))
+        assert listings[0].price_text == "179 000 EUR"
 
-    def test_extract_listing_location(self, parser, soup):
-        listings = list(parser.extract_listings(soup))
-        assert listings[0]["location"] == "гр. София, Лозенец"
+    def test_extract_listing_location_text(self, extractor, soup):
+        listings = list(extractor.extract_listings(soup))
+        assert listings[0].location_text == "гр. София, Лозенец"
 
-    def test_extract_listing_date(self, parser, soup):
-        listings = list(parser.extract_listings(soup))
-        assert listings[0]["date"] == "19.01.2026"
+    def test_extract_listing_returns_raw_listing(self, extractor, soup):
+        listings = list(extractor.extract_listings(soup))
+        assert isinstance(listings[0], RawListing)
+        assert listings[0].site == "bazarbg"
 
-    def test_extract_listing_offer_type_from_title(self, parser, soup):
-        """Test offer_type is extracted from title when present."""
-        listings = list(parser.extract_listings(soup))
-        # Title is "Продава 2-стаен апартамент" which contains "Продава"
-        assert listings[0]["offer_type"] == "продава"
-
-    def test_extract_listing_new_fields(self, parser, soup):
+    def test_extract_listing_new_fields(self, extractor, soup):
         """Test that new fields are present in extracted listings."""
-        listings = list(parser.extract_listings(soup))
-        assert "area" in listings[0]
-        assert "floor" in listings[0]
-        assert "num_photos" in listings[0]
-        assert "total_offers" in listings[0]
-        assert "offer_type" in listings[0]
+        listings = list(extractor.extract_listings(soup))
+        assert listings[0].area_text is not None or listings[0].area_text == ""
+        assert listings[0].floor_text is not None or listings[0].floor_text == ""
+        assert listings[0].num_photos is not None
+        assert listings[0].total_offers is not None
 
-    def test_extract_listings_no_items(self, parser):
+    def test_extract_listings_no_items(self, extractor):
         soup = BeautifulSoup("<html><body></body></html>", "html.parser")
-        listings = list(parser.extract_listings(soup))
+        listings = list(extractor.extract_listings(soup))
         assert len(listings) == 0
 
-    def test_extract_listings_missing_link(self, parser):
+    def test_extract_listings_missing_link(self, extractor):
         html = """
         <div class="listItemContainer">
             <span class="other">No link here</span>
         </div>
         """
         soup = BeautifulSoup(html, "html.parser")
-        listings = list(parser.extract_listings(soup))
+        listings = list(extractor.extract_listings(soup))
         assert len(listings) == 0
 
-    def test_extract_listing_missing_price(self, parser):
+    def test_extract_listing_missing_price(self, extractor):
         html = """
         <div class="listItemContainer">
             <a class="listItemLink" href="/ad/123" title="Test" data-id="123">
@@ -172,11 +116,11 @@ class TestBazarBgParserExtractListings:
         </div>
         """
         soup = BeautifulSoup(html, "html.parser")
-        listings = list(parser.extract_listings(soup))
+        listings = list(extractor.extract_listings(soup))
         assert len(listings) == 1
-        assert listings[0]["price_text"] == ""
+        assert listings[0].price_text == ""
 
-    def test_extract_listing_missing_location(self, parser):
+    def test_extract_listing_missing_location(self, extractor):
         html = """
         <div class="listItemContainer">
             <a class="listItemLink" href="/ad/123" title="Test" data-id="123">
@@ -185,24 +129,11 @@ class TestBazarBgParserExtractListings:
         </div>
         """
         soup = BeautifulSoup(html, "html.parser")
-        listings = list(parser.extract_listings(soup))
+        listings = list(extractor.extract_listings(soup))
         assert len(listings) == 1
-        assert listings[0]["location"] == ""
+        assert listings[0].location_text == ""
 
-    def test_extract_listing_missing_date(self, parser):
-        html = """
-        <div class="listItemContainer">
-            <a class="listItemLink" href="/ad/123" title="Test" data-id="123">
-                <span class="price">100 EUR</span>
-            </a>
-        </div>
-        """
-        soup = BeautifulSoup(html, "html.parser")
-        listings = list(parser.extract_listings(soup))
-        assert len(listings) == 1
-        assert listings[0]["date"] == ""
-
-    def test_extract_listing_missing_data_id(self, parser):
+    def test_extract_listing_missing_data_id(self, extractor):
         html = """
         <div class="listItemContainer">
             <a class="listItemLink" href="/ad/123" title="Test">
@@ -211,31 +142,30 @@ class TestBazarBgParserExtractListings:
         </div>
         """
         soup = BeautifulSoup(html, "html.parser")
-        listings = list(parser.extract_listings(soup))
+        listings = list(extractor.extract_listings(soup))
         assert len(listings) == 1
-        assert listings[0]["ref_no"] == ""
+        assert listings[0].ref_no == ""
 
 
-class TestBazarBgParserTransform:
+class TestTransformerWithBazarBgData:
     @pytest.fixture
-    def parser(self):
-        return BazarBgParser()
+    def transformer(self):
+        return Transformer()
 
-    def test_transform_listing_eur(self, parser):
-        raw = {
-            "title": "Продава 2-стаен апартамент",
-            "price_text": "179 000 EUR",
-            "location": "гр. София, Лозенец",
-            "details_url": "/ad/12345",
-            "ref_no": "12345",
-            "date": "19.01.2026",
-            "offer_type": "продава",  # Set by extract_listings
-        }
-        result = parser.transform_listing(raw)
+    def test_transform_listing_eur(self, transformer):
+        raw = RawListing(
+            site="bazarbg",
+            title="Продава 2-стаен апартамент",
+            price_text="179 000 EUR",
+            location_text="гр. София, Лозенец",
+            details_url="https://bazar.bg/ad/12345",
+            ref_no="12345",
+        )
+        result = transformer.transform(raw)
 
         assert result.site == "bazarbg"
         assert result.price == 179000.0
-        assert result.currency == "EUR"
+        assert result.original_currency == "EUR"
         assert result.city == "София"
         assert result.neighborhood == "Лозенец"
         assert result.property_type == "двустаен"
@@ -243,82 +173,125 @@ class TestBazarBgParserTransform:
         assert result.details_url == "https://bazar.bg/ad/12345"
         assert result.ref_no == "12345"
 
-    def test_transform_listing_bgn(self, parser):
-        raw = {
-            "title": "Продава 3-стаен апартамент",
-            "price_text": "250 000 лв.",
-            "location": "гр. Пловдив, Център",
-            "details_url": "/ad/67890",
-            "ref_no": "67890",
-            "date": "18.01.2026",
-        }
-        result = parser.transform_listing(raw)
+    def test_transform_listing_bgn(self, transformer):
+        raw = RawListing(
+            site="bazarbg",
+            title="Продава 3-стаен апартамент",
+            price_text="250 000 лв.",
+            location_text="гр. Пловдив, Център",
+            details_url="https://bazar.bg/ad/67890",
+            ref_no="67890",
+        )
+        result = transformer.transform(raw)
 
         assert result.site == "bazarbg"
-        assert result.price == 250000.0
-        assert result.currency == "BGN"
+        # BGN is converted to EUR
+        assert result.price == pytest.approx(127809.11, rel=1e-2)
+        assert result.original_currency == "BGN"
         assert result.city == "Пловдив"
         assert result.neighborhood == "Център"
         assert result.property_type == "тристаен"
 
-    def test_transform_listing_missing_price(self, parser):
-        raw = {
-            "title": "Продава апартамент",
-            "price_text": "",
-            "location": "гр. София",
-            "details_url": "/ad/123",
-            "ref_no": "123",
-            "date": "",
-        }
-        result = parser.transform_listing(raw)
+    def test_transform_listing_missing_price(self, transformer):
+        raw = RawListing(
+            site="bazarbg",
+            title="Продава апартамент",
+            price_text="",
+            location_text="гр. София",
+            details_url="https://bazar.bg/ad/123",
+            ref_no="123",
+        )
+        result = transformer.transform(raw)
 
-        assert result.price == 0.0
-        assert result.currency == ""
+        assert result.price is None
+        assert result.original_currency == ""
 
-    def test_transform_listing_missing_location(self, parser):
-        raw = {
-            "title": "Продава апартамент",
-            "price_text": "100 EUR",
-            "location": "",
-            "details_url": "/ad/123",
-            "ref_no": "123",
-            "date": "",
-        }
-        result = parser.transform_listing(raw)
+    def test_transform_listing_missing_location(self, transformer):
+        raw = RawListing(
+            site="bazarbg",
+            title="Продава апартамент",
+            price_text="100 EUR",
+            location_text="",
+            details_url="https://bazar.bg/ad/123",
+            ref_no="123",
+        )
+        result = transformer.transform(raw)
 
         assert result.city == ""
         assert result.neighborhood == ""
 
-    def test_transform_listing_naem(self, parser):
-        raw = {
-            "title": "Под наем 2-стаен",
-            "price_text": "1 000 лв.",
-            "location": "гр. София, Витоша",
-            "details_url": "/ad/999",
-            "ref_no": "999",
-            "date": "",
-            "offer_type": "наем",  # Set by extract_listings
-        }
-        result = parser.transform_listing(raw)
+    def test_transform_listing_naem(self, transformer):
+        raw = RawListing(
+            site="bazarbg",
+            title="Под наем 2-стаен",
+            price_text="1 000 лв.",
+            location_text="гр. София, Витоша",
+            details_url="https://bazar.bg/ad/999",
+            ref_no="999",
+        )
+        result = transformer.transform(raw)
 
         assert result.offer_type == "наем"
         assert result.property_type == "двустаен"
 
+    def test_transform_listing_village_location(self, transformer):
+        raw = RawListing(
+            site="bazarbg",
+            title="Продава къща",
+            price_text="50 000 EUR",
+            location_text="с. Равда",
+            details_url="https://bazar.bg/ad/123",
+            ref_no="123",
+        )
+        result = transformer.transform(raw)
 
-class TestBazarBgParserPagination:
+        assert result.city == "Равда"
+        assert result.neighborhood == ""
+
+    def test_transform_listing_garage_property_type(self, transformer):
+        raw = RawListing(
+            site="bazarbg",
+            title="Продава гараж",
+            price_text="10 000 EUR",
+            location_text="гр. София",
+            details_url="https://bazar.bg/ad/123",
+            ref_no="123",
+        )
+        result = transformer.transform(raw)
+
+        assert result.property_type == "гараж"
+        assert result.offer_type == "продава"
+
+    def test_transform_listing_complex_location(self, transformer):
+        raw = RawListing(
+            site="bazarbg",
+            title="Продава 2-стаен",
+            price_text="100 000 EUR",
+            location_text="гр. София, Витоша, ж.к. Манастирски ливади",
+            details_url="https://bazar.bg/ad/123",
+            ref_no="123",
+        )
+        result = transformer.transform(raw)
+
+        assert result.city == "София"
+        # Neighborhood is normalized - first matching neighborhood is used
+        assert result.neighborhood in ["Витоша", "Манастирски ливади"]
+
+
+class TestBazarBgExtractorPagination:
     @pytest.fixture
-    def parser(self):
-        return BazarBgParser()
+    def extractor(self):
+        return BazarBgExtractor()
 
-    def test_get_total_pages(self, parser):
+    def test_get_total_pages(self, extractor):
         soup = BeautifulSoup(SAMPLE_PAGE_HTML, "html.parser")
-        assert parser.get_total_pages(soup) == 10
+        assert extractor.get_total_pages(soup) == 10
 
-    def test_get_total_pages_no_pagination(self, parser):
+    def test_get_total_pages_no_pagination(self, extractor):
         soup = BeautifulSoup("<html><body></body></html>", "html.parser")
-        assert parser.get_total_pages(soup) == 1
+        assert extractor.get_total_pages(soup) == 1
 
-    def test_get_total_pages_no_page_links(self, parser):
+    def test_get_total_pages_no_page_links(self, extractor):
         html = """
         <html><body>
         <div class="paging">
@@ -327,9 +300,9 @@ class TestBazarBgParserPagination:
         </body></html>
         """
         soup = BeautifulSoup(html, "html.parser")
-        assert parser.get_total_pages(soup) == 1
+        assert extractor.get_total_pages(soup) == 1
 
-    def test_get_total_pages_non_numeric_last_page(self, parser):
+    def test_get_total_pages_non_numeric_last_page(self, extractor):
         html = """
         <html><body>
         <div class="paging">
@@ -339,64 +312,64 @@ class TestBazarBgParserPagination:
         </body></html>
         """
         soup = BeautifulSoup(html, "html.parser")
-        assert parser.get_total_pages(soup) == 1
+        assert extractor.get_total_pages(soup) == 1
 
-    def test_get_next_page_url_basic(self, parser):
+    def test_get_next_page_url_basic(self, extractor):
         soup = BeautifulSoup(SAMPLE_PAGE_HTML, "html.parser")
         url = "https://bazar.bg/search?type=apartment"
-        next_url = parser.get_next_page_url(soup, url, 2)
+        next_url = extractor.get_next_page_url(soup, url, 2)
 
         assert next_url == "https://bazar.bg/search?type=apartment&page=2"
 
-    def test_get_next_page_url_no_query(self, parser):
+    def test_get_next_page_url_no_query(self, extractor):
         soup = BeautifulSoup(SAMPLE_PAGE_HTML, "html.parser")
         url = "https://bazar.bg/search"
-        next_url = parser.get_next_page_url(soup, url, 2)
+        next_url = extractor.get_next_page_url(soup, url, 2)
 
         assert next_url == "https://bazar.bg/search?page=2"
 
-    def test_get_next_page_url_existing_page(self, parser):
+    def test_get_next_page_url_existing_page(self, extractor):
         soup = BeautifulSoup(SAMPLE_PAGE_HTML, "html.parser")
         url = "https://bazar.bg/search?type=apartment&page=2"
-        next_url = parser.get_next_page_url(soup, url, 3)
+        next_url = extractor.get_next_page_url(soup, url, 3)
 
         assert next_url == "https://bazar.bg/search?type=apartment&page=3"
 
-    def test_get_next_page_url_exceeds_total(self, parser):
+    def test_get_next_page_url_exceeds_total(self, extractor):
         soup = BeautifulSoup(SAMPLE_PAGE_HTML, "html.parser")
         url = "https://bazar.bg/search?type=apartment"
-        next_url = parser.get_next_page_url(soup, url, 11)
+        next_url = extractor.get_next_page_url(soup, url, 11)
 
         assert next_url is None
 
-    def test_get_next_page_url_no_items(self, parser):
+    def test_get_next_page_url_no_items(self, extractor):
         soup = BeautifulSoup("<html><body></body></html>", "html.parser")
         url = "https://bazar.bg/search"
-        next_url = parser.get_next_page_url(soup, url, 2)
+        next_url = extractor.get_next_page_url(soup, url, 2)
 
         assert next_url is None
 
-    def test_get_next_page_url_page_equals_total(self, parser):
+    def test_get_next_page_url_page_equals_total(self, extractor):
         soup = BeautifulSoup(SAMPLE_PAGE_HTML, "html.parser")
         url = "https://bazar.bg/search"
-        next_url = parser.get_next_page_url(soup, url, 10)
+        next_url = extractor.get_next_page_url(soup, url, 10)
 
         assert next_url == "https://bazar.bg/search?page=10"
 
-    def test_get_next_page_url_page_one(self, parser):
+    def test_get_next_page_url_page_one(self, extractor):
         soup = BeautifulSoup(SAMPLE_PAGE_HTML, "html.parser")
         url = "https://bazar.bg/search"
-        next_url = parser.get_next_page_url(soup, url, 1)
+        next_url = extractor.get_next_page_url(soup, url, 1)
 
         assert next_url == "https://bazar.bg/search?page=1"
 
 
-class TestBazarBgParserEdgeCases:
+class TestBazarBgExtractorEdgeCases:
     @pytest.fixture
-    def parser(self):
-        return BazarBgParser()
+    def extractor(self):
+        return BazarBgExtractor()
 
-    def test_extract_listing_special_characters_in_title(self, parser):
+    def test_extract_listing_special_characters_in_title(self, extractor):
         html = """
         <div class="listItemContainer">
             <a class="listItemLink" href="/ad/123" title="&quot;Луксозен&quot; апартамент &amp; СПА" data-id="123">
@@ -405,11 +378,11 @@ class TestBazarBgParserEdgeCases:
         </div>
         """
         soup = BeautifulSoup(html, "html.parser")
-        listings = list(parser.extract_listings(soup))
+        listings = list(extractor.extract_listings(soup))
         assert len(listings) == 1
-        assert '"Луксозен" апартамент & СПА' in listings[0]["title"]
+        assert '"Луксозен" апартамент & СПА' in listings[0].title
 
-    def test_extract_listing_whitespace_in_price(self, parser):
+    def test_extract_listing_whitespace_in_price(self, extractor):
         html = """
         <div class="listItemContainer">
             <a class="listItemLink" href="/ad/123" title="Test" data-id="123">
@@ -418,10 +391,10 @@ class TestBazarBgParserEdgeCases:
         </div>
         """
         soup = BeautifulSoup(html, "html.parser")
-        listings = list(parser.extract_listings(soup))
-        assert listings[0]["price_text"] == "179 000   EUR"
+        listings = list(extractor.extract_listings(soup))
+        assert listings[0].price_text == "179 000   EUR"
 
-    def test_extract_listing_empty_href(self, parser):
+    def test_extract_listing_empty_href(self, extractor):
         html = """
         <div class="listItemContainer">
             <a class="listItemLink" href="" title="Test" data-id="123">
@@ -430,11 +403,11 @@ class TestBazarBgParserEdgeCases:
         </div>
         """
         soup = BeautifulSoup(html, "html.parser")
-        listings = list(parser.extract_listings(soup))
+        listings = list(extractor.extract_listings(soup))
         assert len(listings) == 1
-        assert listings[0]["details_url"] == ""
+        assert listings[0].details_url == ""
 
-    def test_extract_listing_missing_title_attribute(self, parser):
+    def test_extract_listing_missing_title_attribute(self, extractor):
         html = """
         <div class="listItemContainer">
             <a class="listItemLink" href="/ad/123" data-id="123">
@@ -443,51 +416,191 @@ class TestBazarBgParserEdgeCases:
         </div>
         """
         soup = BeautifulSoup(html, "html.parser")
-        listings = list(parser.extract_listings(soup))
+        listings = list(extractor.extract_listings(soup))
         assert len(listings) == 1
-        assert listings[0]["title"] == ""
+        assert listings[0].title == ""
 
-    def test_transform_listing_village_location(self, parser):
-        raw = {
-            "title": "Продава къща",
-            "price_text": "50 000 EUR",
-            "location": "с. Равда",
-            "details_url": "/ad/123",
-            "ref_no": "123",
-            "date": "",
-        }
-        result = parser.transform_listing(raw)
 
-        assert result.city == "Равда"
-        assert result.neighborhood == ""
+# =============================================================================
+# Extract Total Floors Tests
+# =============================================================================
 
-    def test_transform_listing_garage_property_type(self, parser):
-        raw = {
-            "title": "Продава гараж",
-            "price_text": "10 000 EUR",
-            "location": "гр. София",
-            "details_url": "/ad/123",
-            "ref_no": "123",
-            "date": "",
-            "offer_type": "продава",  # Set by extract_listings
-        }
-        result = parser.transform_listing(raw)
 
-        # Garage is now a recognized property type
-        assert result.property_type == "гараж"
-        assert result.offer_type == "продава"
+class TestExtractTotalFloors:
+    """Test the extract_total_floors method."""
 
-    def test_transform_listing_complex_location(self, parser):
-        raw = {
-            "title": "Продава 2-стаен",
-            "price_text": "100 000 EUR",
-            "location": "гр. София, Витоша, ж.к. Манастирски ливади",
-            "details_url": "/ad/123",
-            "ref_no": "123",
-            "date": "",
-        }
-        result = parser.transform_listing(raw)
+    @pytest.fixture
+    def extractor(self):
+        return BazarBgExtractor()
 
-        assert result.city == "София"
-        # Neighborhood is normalized - first matching neighborhood is used
-        assert result.neighborhood in ["Витоша", "Манастирски ливади"]
+    def test_extract_total_floors_etajnost(self, extractor):
+        assert extractor.extract_total_floors("Етажност: 8") == "8"
+
+    def test_extract_total_floors_etajnost_na_sgradata(self, extractor):
+        assert extractor.extract_total_floors("Етажност на сградата: 12") == "12"
+
+    def test_extract_total_floors_ot_pattern_etaja(self, extractor):
+        assert extractor.extract_total_floors("3-ти от 8 етажа") == "8"
+
+    def test_extract_total_floors_ot_pattern_et(self, extractor):
+        assert extractor.extract_total_floors("5-ти от 10 ет.") == "10"
+
+    def test_extract_total_floors_etajna_sgrda(self, extractor):
+        assert extractor.extract_total_floors("Сградата е 6-етажна с асансьор") == "6"
+
+    def test_extract_total_floors_empty(self, extractor):
+        assert extractor.extract_total_floors("") == ""
+
+    def test_extract_total_floors_no_match(self, extractor):
+        assert extractor.extract_total_floors("Апартамент в новострой") == ""
+
+    def test_extract_total_floors_none(self, extractor):
+        assert extractor.extract_total_floors(None) == ""
+
+
+# =============================================================================
+# New Fields Extraction Tests
+# =============================================================================
+
+
+class TestBazarBgExtractorNewFields:
+    """Test extraction of raw_link_description and total_floors_text."""
+
+    @pytest.fixture
+    def extractor(self):
+        return BazarBgExtractor()
+
+    def test_extract_raw_link_description(self, extractor):
+        """Test extracting raw_link_description from link title attribute."""
+        html = """
+        <div class="listItemContainer">
+            <a class="listItemLink" href="/ad/12345" title="Продава 3-СТАЕН, гр. София, Лозенец" data-id="12345">
+                <span class="price">319 000 €</span>
+                <span class="location">гр. София, Лозенец</span>
+            </a>
+        </div>
+        """
+        soup = BeautifulSoup(html, "html.parser")
+        listings = list(extractor.extract_listings(soup))
+        assert listings[0].raw_link_description == "Продава 3-СТАЕН, гр. София, Лозенец"
+
+    def test_extract_raw_link_description_empty(self, extractor):
+        """Test that raw_link_description is empty when no title attribute exists."""
+        html = """
+        <div class="listItemContainer">
+            <a class="listItemLink" href="/ad/12345" data-id="12345">
+                <span class="price">100 EUR</span>
+            </a>
+        </div>
+        """
+        soup = BeautifulSoup(html, "html.parser")
+        listings = list(extractor.extract_listings(soup))
+        assert listings[0].raw_link_description == ""
+
+    def test_extract_total_floors_from_title(self, extractor):
+        """Test extracting total_floors_text from title."""
+        html = """
+        <div class="listItemContainer">
+            <a class="listItemLink" href="/ad/12345" title="Продава 2-стаен, 3-ти от 8 етажа" data-id="12345">
+                <span class="price">150 000 EUR</span>
+            </a>
+        </div>
+        """
+        soup = BeautifulSoup(html, "html.parser")
+        listings = list(extractor.extract_listings(soup))
+        assert listings[0].total_floors_text == "8"
+
+    def test_extract_total_floors_empty(self, extractor):
+        """Test that total_floors_text is empty when not available."""
+        soup = BeautifulSoup(SAMPLE_PAGE_HTML, "html.parser")
+        listings = list(extractor.extract_listings(soup))
+        # SAMPLE_PAGE_HTML titles don't have total floors info
+        assert listings[0].total_floors_text == ""
+
+    def test_extract_price_with_nested_currency_span(self, extractor):
+        """Test extracting price when currency is in a nested span element."""
+        html = """
+        <div class="listItemContainer">
+            <a class="listItemLink" href="/ad/53205356" title="Продава 3-СТАЕН, гр. София, Лозенец" data-id="53205356">
+                <span class="price">319 000 <span class="currency">€</span></span>
+                <span class="price">623 909,77 <span class="currency">лв</span></span>
+                <span class="location">гр. София, Лозенец</span>
+            </a>
+        </div>
+        """
+        soup = BeautifulSoup(html, "html.parser")
+        listings = list(extractor.extract_listings(soup))
+        assert len(listings) == 1
+        # First price span is selected (EUR price)
+        assert "319 000" in listings[0].price_text
+        assert "€" in listings[0].price_text
+
+    def test_extract_price_multiple_price_spans_takes_first(self, extractor):
+        """Test that when multiple price spans exist, the first one (EUR) is used."""
+        html = """
+        <div class="listItemContainer">
+            <a class="listItemLink" href="/ad/12345" title="Test" data-id="12345">
+                <div class="title">
+                    <span class="price">150 000 <span class="currency">€</span></span>
+                    <span class="price">293 370,00 <span class="currency">лв</span></span>
+                </div>
+            </a>
+        </div>
+        """
+        soup = BeautifulSoup(html, "html.parser")
+        listings = list(extractor.extract_listings(soup))
+        # Should extract first price (EUR)
+        assert "150 000" in listings[0].price_text
+        assert "€" in listings[0].price_text
+
+
+# =============================================================================
+# Transformer Integration Tests for New Fields
+# =============================================================================
+
+
+class TestBazarBgTransformTotalFloors:
+    """Test that total_floors is correctly passed through transformer."""
+
+    @pytest.fixture
+    def transformer(self):
+        return Transformer()
+
+    def test_transform_with_total_floors(self, transformer):
+        raw = RawListing(
+            site="bazarbg",
+            title="Продава 2-стаен апартамент",
+            price_text="179 000 EUR",
+            location_text="гр. София, Лозенец",
+            details_url="https://bazar.bg/ad/12345",
+            ref_no="12345",
+            total_floors_text="8",
+        )
+        result = transformer.transform(raw)
+        assert result.total_floors == "8"
+
+    def test_transform_with_empty_total_floors(self, transformer):
+        raw = RawListing(
+            site="bazarbg",
+            title="Продава 2-стаен апартамент",
+            price_text="179 000 EUR",
+            location_text="гр. София, Лозенец",
+            details_url="https://bazar.bg/ad/12345",
+            ref_no="12345",
+            total_floors_text="",
+        )
+        result = transformer.transform(raw)
+        assert result.total_floors == ""
+
+    def test_transform_with_none_total_floors(self, transformer):
+        raw = RawListing(
+            site="bazarbg",
+            title="Продава 2-стаен апартамент",
+            price_text="179 000 EUR",
+            location_text="гр. София, Лозенец",
+            details_url="https://bazar.bg/ad/12345",
+            ref_no="12345",
+            total_floors_text=None,
+        )
+        result = transformer.transform(raw)
+        assert result.total_floors is None

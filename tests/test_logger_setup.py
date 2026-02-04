@@ -1,7 +1,6 @@
 """Tests for logger_setup module."""
 
 import logging
-import pytest
 from unittest.mock import patch
 
 import src.logger_setup as logger_module

@@ -1,201 +1,195 @@
 import re
+from datetime import datetime
+from typing import Any, Iterator
 
-from src.core.normalization import normalize_city, normalize_neighborhood
-from src.core.parser import BaseParser, Field, SiteConfig
-from src.core.transforms import (
-    calculate_price_per_m2,
-    enum_value_or_str,
-    extract_area,
-    extract_currency,
-    extract_floor,
-    extract_offer_type,
-    extract_property_type,
-    is_valid_offer_type,
-    parse_price,
-)
+from bs4 import BeautifulSoup, Tag
+
+from src.core.extractor import BaseExtractor, SiteConfig
+from src.core.models import RawListing
 
 
-def extract_location_city(location: str) -> str:
-    """Extract and normalize city from location like 'гр. Пловдив, Център'."""
-    if not location:
-        return ""
-    city = location.replace("гр. ", "").split(",")[0].strip()
-    return enum_value_or_str(normalize_city(city))
+class BazarBgExtractor(BaseExtractor):
+    """Extractor for bazar.bg."""
 
-
-def extract_location_neighborhood(location: str) -> str:
-    """Extract and normalize neighborhood from location like 'гр. Пловдив, Център'."""
-    if not location:
-        return ""
-    parts = location.split(", ", 1)
-    neighborhood = parts[1].strip() if len(parts) > 1 else ""
-    if not neighborhood:
-        return ""
-    city = extract_location_city(location)
-    return enum_value_or_str(normalize_neighborhood(neighborhood, city))
-
-
-def _calculate_listing_price_per_m2(raw: dict) -> str:
-    """Calculate price per m2 from raw listing data."""
-    price = parse_price(raw.get("price_text", ""))
-    area_str = raw.get("area", "")
-    if not area_str:
-        # Try to extract from title
-        area_str = extract_area(raw.get("title", ""))
-    return calculate_price_per_m2(price, area_str)
-
-
-class BazarBgParser(BaseParser):
     config = SiteConfig(
         name="bazarbg",
         base_url="https://bazar.bg",
         encoding="utf-8",
         rate_limit_seconds=1.5,
-        use_cloudscraper=True,  # Bypass Cloudflare protection
+        use_cloudscraper=True,
     )
 
-    class Fields:
-        raw_title = Field("title")
-        property_type = Field("title", extract_property_type)
-        offer_type = Field("offer_type")  # Pre-normalized in extract_listings
-        price = Field("price_text", parse_price)
-        currency = Field("price_text", extract_currency)
-        city = Field("location", extract_location_city)
-        neighborhood = Field("location", extract_location_neighborhood)
-        details_url = Field("details_url", prepend_url=True)
-        ref_no = Field("ref_no")
-        time = Field("date")
-        area = Field("area")
-        floor = Field("floor")
-        num_photos = Field("num_photos")
-        total_offers = Field("total_offers")
-        price_per_m2 = Field("price_per_m2")
-        search_url = Field("search_url")
-
-    def _extract_total_offers(self, soup) -> int:
-        """Extract total offers count from page.
-
-        Bazar.bg shows count like "Над 22123 обяви" in meta description.
-        """
-        # Try meta description first
-        meta_desc = soup.select_one("meta[name='description']")
-        if meta_desc:
-            content = meta_desc.get("content", "")
-            match = re.search(r"Над\s*([\d\s]+)\s*обяви", content)
-            if match:
-                return int(match.group(1).replace(" ", ""))
-
-        # Try og:description
-        og_desc = soup.select_one("meta[property='og:description']")
-        if og_desc:
-            content = og_desc.get("content", "")
-            match = re.search(r"Над\s*([\d\s]+)\s*обяви", content)
-            if match:
-                return int(match.group(1).replace(" ", ""))
-
-        return 0
-
-    def _detect_offer_type_from_page(self, soup) -> str:
-        """Detect default offer type from page URL in canonical link.
-
-        Bazar.bg URLs contain patterns like:
-        - /prodazhba-apartamenti/ for sales
-        - /naemi-apartamenti/ for rentals
-        """
-        # Check canonical URL
-        canonical = soup.select_one("link[rel='canonical']")
-        if canonical:
-            url = canonical.get("href", "")
-            offer_type = extract_offer_type("", url)
-            if is_valid_offer_type(offer_type):
-                return offer_type
-
-        # Check og:url
-        og_url = soup.select_one("meta[property='og:url']")
-        if og_url:
-            url = og_url.get("content", "")
-            offer_type = extract_offer_type("", url)
-            if is_valid_offer_type(offer_type):
-                return offer_type
-
+    def _get_area(self, text: str) -> str:
+        """Extract area from text like 'Продава 3-СТАЕН, 85 кв.м, 5 ет.' or description."""
+        if match := re.search(r"(\d+(?:[.,]\d+)?)\s*(?:кв\.?\s*)?м", text or ""):
+            return match.group(0)
         return ""
 
-    def extract_listings(self, soup):
-        # Extract total offers from the page (only once per page)
+    def _get_floor(self, text: str) -> str:
+        """Extract floor from text like 'Продава 3-СТАЕН, 85 кв.м, 5 ет.' or description."""
+        if match := re.search(r"(\d+)\s*ет\.?", text or ""):
+            return match.group(1)
+        return ""
+
+    def _extract_total_offers(self, soup: BeautifulSoup) -> int:
+        """Extract total offers count from page meta description."""
+        for selector in ["meta[name='description']", "meta[property='og:description']"]:
+            if meta := soup.select_one(selector):
+                content = meta.get("content", "")
+                if match := re.search(r"Над\s*([\d\s]+)\s*обяви", content):
+                    return int(match.group(1).replace(" ", ""))
+        return 0
+
+    def _detect_offer_type(self, soup: BeautifulSoup) -> str:
+        """Detect offer type from page URL in canonical link or og:url."""
+        for selector in ["link[rel='canonical']", "meta[property='og:url']"]:
+            if elem := soup.select_one(selector):
+                url = (elem.get("href") or elem.get("content", "")).lower()
+                if "prodazhba" in url or "prodajba" in url:
+                    return "продава"
+                if "naem" in url:
+                    return "наем"
+        return ""
+
+    def _get_listing_data_v1(self, card: Tag) -> dict | None:
+        """Extract data from thumbnail view format (listItemContainer)."""
+        if not (link := card.select_one("a.listItemLink")):
+            return None
+
+        title = link.get("title", "")
+        return {
+            "title": title,
+            "raw_link_description": title,
+            "description": "",
+            "href": link.get("href", ""),
+            "ref_no": link.get("data-id", ""),
+            "price_text": self.get_text("span.price", link),
+            "location": self.get_text("span.location", link),
+            "area_text": self._get_area(title),
+            "floor_text": self._get_floor(title),
+            "total_floors_text": self.extract_total_floors(title),
+            "num_photos": len(card.select("img.cover, img.photo, img.lazy")),
+        }
+
+    def _get_listing_data_v2(self, card: Tag) -> dict | None:
+        """Extract data from list view format (list-result with div.description)."""
+        # Find the main link - try various selectors
+        # Priority: title link > photo link
+        link = card.select_one("div.details div.title > a, div.title > a[href*='obiava'], a.photo[href*='obiava']")
+        if not link:
+            # Try finding any link with obiava in href
+            link = card.select_one("a[href*='obiava']")
+        if not link:
+            return None
+
+        # Get title from link text, title attribute, or img alt
+        title = link.get_text(strip=True)
+        if not title:
+            title = link.get("title", "")
+        if not title:
+            img = card.select_one("a.photo img, div.picture img")
+            if img:
+                title = img.get("alt", "")
+
+        href = link.get("href", "")
+        ref_no = link.get("data-id", "")
+
+        # Extract description
+        description = self.get_text("div.description", card)
+
+        # Extract price
+        price_text = self.get_text("div.price", card)
+
+        # Extract location
+        location = self.get_text("div.location, div.date-location .location", card)
+
+        # Try to get area and floor from title first, then from description
+        area_text = self._get_area(title)
+        floor_text = self._get_floor(title)
+        total_floors_text = self.extract_total_floors(title)
+
+        # Fallback to description if not found in title
+        if not area_text and description:
+            area_text = self._get_area(description)
+        if not floor_text and description:
+            floor_text = self._get_floor(description)
+        if not total_floors_text and description:
+            total_floors_text = self.extract_total_floors(description)
+
+        return {
+            "title": title,
+            "raw_link_description": link.get("title", "") or title,
+            "description": description,
+            "href": href,
+            "ref_no": ref_no,
+            "price_text": price_text,
+            "location": location,
+            "area_text": area_text,
+            "floor_text": floor_text,
+            "total_floors_text": total_floors_text,
+            "num_photos": len(card.select("div.picture img, a.image img, a.photo img")),
+        }
+
+    def _get_listing_data(self, card: Tag) -> dict | None:
+        """Extract data from a single listing card (supports both formats)."""
+        # Try v1 format first (thumbnail view)
+        if card.select_one("a.listItemLink"):
+            return self._get_listing_data_v1(card)
+        # Try v2 format (list view with description)
+        return self._get_listing_data_v2(card)
+
+    def extract_listings(self, content: Any) -> Iterator[RawListing]:
+        """Extract listings from bazar.bg HTML page."""
+        soup: BeautifulSoup = content
         total_offers = self._extract_total_offers(soup)
+        default_offer_type = self._detect_offer_type(soup)
+        scraped_at = datetime.now()
 
-        # Detect default offer type from page context
-        default_offer_type = self._detect_offer_type_from_page(soup)
+        # Support both listing formats
+        cards = soup.select("div.listItemContainer, div.list-result")
 
-        for item in soup.select("div.listItemContainer"):
-            link = item.select_one("a.listItemLink")
-            if not link:
+        for card in cards:
+            if not (data := self._get_listing_data(card)):
                 continue
 
-            title = link.get("title", "")
-            href = link.get("href", "")
-            ref_no = link.get("data-id", "")
+            # Build title with offer type for transformer
+            title = self.prepend_offer_type(data["title"], default_offer_type)
 
-            price_elem = link.select_one("span.price")
-            price_text = price_elem.get_text(strip=True) if price_elem else ""
+            yield RawListing(
+                site=self.config.name,
+                scraped_at=scraped_at,
+                details_url=self.prepend_base_url(data["href"]),
+                price_text=data["price_text"],
+                location_text=data["location"],
+                title=title,
+                description=data.get("description", ""),
+                area_text=data["area_text"],
+                floor_text=data["floor_text"],
+                total_floors_text=data["total_floors_text"],
+                num_photos=data["num_photos"],
+                ref_no=data["ref_no"],
+                total_offers=total_offers,
+                raw_link_description=data["raw_link_description"],
+            )
 
-            location = self.get_text("span.location", link)
-            date = self.get_text("span.date", link)
-
-            # Count photos (images in the listing card)
-            photos = item.select("img.cover, img.photo, img.lazy")
-            num_photos = len(photos) if photos else 0
-
-            # Try to extract area and floor from title
-            # Titles like "Продава 3-СТАЕН, 85 кв.м, 5 ет." may contain this info
-            area = extract_area(title)
-            floor = extract_floor(title)
-
-            # Determine offer type: try from title first, fall back to page context
-            offer_type = extract_offer_type(title, href)
-            if not is_valid_offer_type(offer_type):
-                offer_type = default_offer_type
-
-            raw = {
-                "title": title,
-                "details_url": href,
-                "ref_no": ref_no,
-                "price_text": price_text,
-                "location": location,
-                "date": date,
-                "area": area,
-                "floor": floor,
-                "num_photos": num_photos,
-                "total_offers": total_offers,
-                "offer_type": offer_type,
-            }
-
-            # Calculate price per m2
-            raw["price_per_m2"] = _calculate_listing_price_per_m2(raw)
-
-            yield raw
-
-    def get_total_pages(self, soup) -> int:
-        pagination = soup.select_one("div.paging")
-        if not pagination:
+    def get_total_pages(self, content: Any) -> int:
+        """Get total pages from pagination."""
+        soup: BeautifulSoup = content
+        if not (pagination := soup.select_one("div.paging")):
             return 1
-        page_links = pagination.select("a.btn.not-current")
-        if not page_links:
+        if not (page_links := pagination.select("a.btn.not-current")):
             return 1
         last_page_text = page_links[-1].get_text(strip=True)
-        match = re.search(r"\d+", last_page_text)
-        return int(match.group()) if match else 1
+        if match := re.search(r"\d+", last_page_text):
+            return int(match.group())
+        return 1
 
-    def get_next_page_url(self, soup, current_url: str, page_number: int) -> str | None:
-        if not soup.select("div.listItemContainer"):
+    def get_next_page_url(self, content: Any, current_url: str, page_number: int) -> str | None:
+        """Get URL for next page of results."""
+        soup: BeautifulSoup = content
+        if not soup.select("div.listItemContainer, div.list-result"):
+            return None
+        if page_number > self.get_total_pages(soup):
             return None
 
-        total = self.get_total_pages(soup)
-        if page_number > total:
-            return None
-
-        if "page=" in current_url:
-            return re.sub(r"page=\d+", f"page={page_number}", current_url)
-
-        separator = "&" if "?" in current_url else "?"
-        return f"{current_url}{separator}page={page_number}"
+        return self.build_page_url(current_url, page_number)

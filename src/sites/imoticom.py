@@ -1,280 +1,168 @@
 import re
+from datetime import datetime
+from typing import Any, Iterator
 
-from bs4 import Comment
+from bs4 import BeautifulSoup, Tag
 
-from src.core.normalization import normalize_city, normalize_neighborhood
-from src.core.parser import BaseParser, Field, SiteConfig
-from src.core.transforms import (
-    extract_agency,
-    extract_currency,
-    extract_offer_type,
-    extract_property_type,
-    is_without_dds,
-    parse_price,
-)
+from src.core.extractor import BaseExtractor, SiteConfig
+from src.core.models import RawListing
 
 
-def extract_city_from_location(location: str) -> str:
-    """Extract and normalize city from location."""
-    if not location:
-        return ""
-    parts = location.split(",")
-    city = parts[0].strip() if parts else ""
-    result = normalize_city(city)
-    return result.value if hasattr(result, "value") else result
+class ImotiComExtractor(BaseExtractor):
+    """Extractor for imoti.com."""
 
-
-def extract_neighborhood_from_location(location: str) -> str:
-    """Extract and normalize neighborhood from location."""
-    if not location:
-        return ""
-    parts = location.split(",")
-    neighborhood = parts[1].strip() if len(parts) > 1 else ""
-    if not neighborhood:
-        return ""
-    city = extract_city_from_location(location)
-    result = normalize_neighborhood(neighborhood, city)
-    return result.value if hasattr(result, "value") else result
-
-
-def extract_area(location_info: str) -> str:
-    if not location_info:
-        return ""
-    match = re.search(r"(\d+)\s*кв\.м", location_info)
-    return f"{match.group(1)} кв.м" if match else ""
-
-
-def extract_floor(location_info: str) -> str:
-    """Extract floor from location_info like 'ет. 3' or 'етаж 3'."""
-    if not location_info:
-        return ""
-    match = re.search(r"(?:ет\.|етаж)\s*(\d+)", location_info, re.IGNORECASE)
-    return match.group(1) if match else ""
-
-
-def extract_area_numeric(location_info: str) -> str:
-    """Extract numeric area value for price_per_m2 calculation."""
-    if not location_info:
-        return ""
-    match = re.search(r"(\d+)\s*кв\.м", location_info)
-    return match.group(1) if match else ""
-
-
-def extract_ref_from_url(url: str) -> str:
-    """Extract reference number from URL like /obiava/23458881/..."""
-    if not url:
-        return ""
-    match = re.search(r"/obiava/(\d+)/", url)
-    return match.group(1) if match else ""
-
-
-def calculate_price_per_m2(raw: dict) -> str:
-    """Calculate price per m2 from price_text and location_info."""
-    try:
-        price = parse_price(raw.get("price_text", ""))
-        area_str = extract_area_numeric(raw.get("location_info", ""))
-        if price and area_str:
-            area = float(area_str)
-            if area > 0:
-                return str(round(price / area, 2))
-    except (ValueError, TypeError, ZeroDivisionError):
-        pass
-    return ""
-
-
-class ImotiComParser(BaseParser):
     config = SiteConfig(
         name="imoticom",
         base_url="https://www.imoti.com",
         encoding="utf-8",
         rate_limit_seconds=1.0,
-        use_cloudscraper=True,  # Bypass Cloudflare protection
+        use_cloudscraper=True,
     )
 
-    class Fields:
-        price = Field("price_text", parse_price)
-        currency = Field("price_text", extract_currency)
-        without_dds = Field("price_text", is_without_dds)
-        city = Field("location", extract_city_from_location)
-        neighborhood = Field("location", extract_neighborhood_from_location)
-        raw_title = Field("title")
-        property_type = Field("title", extract_property_type)
-        offer_type = Field("title", extract_offer_type)
-        raw_description = Field("description")
-        details_url = Field("details_url")
-        contact_info = Field("contact_info")
-        area = Field("location_info", extract_area)
-        agency = Field("agency_name", extract_agency)
-        agency_url = Field("agency_url")
-        ref_no = Field("ref_no")
-        total_offers = Field("total_offers")
-        time = Field("time")
-        num_photos = Field("num_photos")
-        price_per_m2 = Field("price_per_m2")
-        floor = Field("location_info", extract_floor)
-        search_url = Field("search_url")
-
-    def _extract_location(self, item) -> str:
-        location_div = item.select_one("div.location")
-        if not location_div:
-            return ""
-        full_text = location_div.get_text(separator="\n", strip=True)
-        lines = full_text.split("\n")
-        return lines[0].strip() if lines else ""
-
-    def _extract_location_info(self, item) -> str:
-        location_div = item.select_one("div.location")
-        if not location_div:
-            return ""
-        return location_div.get_text(separator="\n", strip=True)
-
-    def _extract_time_from_comment(self, item) -> str:
-        """Extract time from HTML comment like <!-- 10:07 часа от 29.12.2025-->"""
-        for comment in item.find_all(string=lambda text: isinstance(text, Comment)):
-            match = re.search(r"(\d{1,2}:\d{2})\s*часа\s*от\s*(\S+)", comment)
-            if match:
-                time_str = match.group(1)
-                date_str = match.group(2)
-                if date_str == "днес":
-                    return f"{time_str} днес"
-                return f"{time_str} {date_str}"
+    def _get_area(self, location_info: str) -> str:
+        """Extract area from location info like '85 кв.м, ет. 3'."""
+        if match := re.search(r"(\d+)\s*кв\.м", location_info):
+            return f"{match.group(1)} кв.м"
         return ""
 
-    def _extract_num_photos(self, item) -> int:
-        """Count number of photos - on list page there's only 1 photo per item."""
-        photo_div = item.select_one("div.photo img")
-        return 1 if photo_div else 0
+    def _get_floor(self, text: str) -> str:
+        """Extract floor from text like 'ет. 3', 'етаж 3', or '6-ти ет.'."""
+        if not text:
+            return ""
+        # Pattern 1: "ет. 3" or "етаж 3"
+        if match := re.search(r"(?:ет\.|етаж)\s*(\d+)", text, re.IGNORECASE):
+            return match.group(1)
+        # Pattern 2: "6-ти ет." or "3-ти етаж" (Bulgarian ordinal suffix)
+        if match := re.search(r"(\d+)-(?:ти|ви|ри|ми|ия)\s*(?:ет\.?|етаж)", text, re.IGNORECASE):
+            return match.group(1)
+        return ""
 
-    def _extract_total_offers(self, soup) -> int:
-        """Extract total offers count from page like '1 - 20 от общо 2000+ обяви'"""
-        # Look for pattern in page - the total count is in a strong tag
-        page_info = soup.find(string=re.compile(r"от общо"))
-        if page_info:
-            parent = page_info.parent if page_info.parent else None
-            if parent:
-                text = parent.get_text()
-                match = re.search(r"от общо\s*(\d+)", text.replace("+", ""))
-                if match:
-                    return int(match.group(1))
-        return 0
+    def _get_ref_from_url(self, url: str) -> str:
+        """Extract reference number from URL like /obiava/23458881/..."""
+        return self.extract_ref_from_url(url, [r"/obiava/(\d+)/"])
 
-    def _extract_agency_info(self, item) -> tuple[str, str]:
-        """Extract agency name from description text.
+    def _get_total_floors(self, text: str) -> str:
+        """Extract total floors from text (if available)."""
+        return self.extract_total_floors(text)
 
-        On the list page, agency info is often embedded in the description text.
-        Returns tuple of (agency_name, agency_url).
-        """
-        # On the list page, agency info is usually in the description
-        info_div = item.select_one("div.info")
-        if not info_div:
-            return "", ""
+    def _get_location(self, card: Tag) -> str:
+        """Extract first line of location (city, neighborhood)."""
+        if location_div := card.select_one("div.location"):
+            full_text = location_div.get_text(separator="\n", strip=True)
+            lines = full_text.split("\n")
+            return lines[0].strip() if lines else ""
+        return ""
 
-        # Get full text and look for common agency patterns
+    def _get_location_info(self, card: Tag) -> str:
+        """Extract full location info (includes area, floor)."""
+        if location_div := card.select_one("div.location"):
+            return location_div.get_text(separator="\n", strip=True)
+        return ""
+
+    def _get_description(self, card: Tag) -> str:
+        """Extract description text from info div."""
+        if info_div := card.select_one("div.info"):
+            for child in info_div.children:
+                if isinstance(child, str):
+                    text = child.strip()
+                    if text and "кв.м" not in text:
+                        return text
+        return ""
+
+    def _get_raw_link_description(self, card: Tag) -> str:
+        """Extract raw_link_description from div.photo alt attribute."""
+        if photo_div := card.select_one("div.photo"):
+            return photo_div.get("alt", "")
+        return ""
+
+    def _get_num_photos(self, card: Tag) -> int:
+        """Count number of photos."""
+        return 1 if card.select_one("div.photo img") else 0
+
+    def _get_agency_name(self, card: Tag) -> str:
+        """Extract agency name from description text."""
+        if not (info_div := card.select_one("div.info")):
+            return ""
+
         full_text = info_div.get_text(strip=True)
-
-        # Look for "Агенция" or common agency name patterns
         agency_patterns = [
             r"Агенция\s+(?:за\s+недвижими\s+имоти\s+)?([A-Za-zА-Яа-я\s]+?)(?:\s+(?:предлага|представя|има|с\s+удоволствие))",
             r"([A-Za-z\s]+(?:Estate|Properties|Estates|Real Estate|Имоти|Пропърти)s?)",
         ]
 
         for pattern in agency_patterns:
-            match = re.search(pattern, full_text, re.IGNORECASE)
-            if match:
+            if match := re.search(pattern, full_text, re.IGNORECASE):
                 agency_name = match.group(1).strip()
-                # Clean up common suffixes
                 agency_name = re.sub(r"\s+(предлага|представя|има|с)$", "", agency_name)
-                if len(agency_name) > 3:  # Avoid false positives
-                    return agency_name, ""
+                if len(agency_name) > 3:
+                    return agency_name
+        return ""
 
-        return "", ""
+    def _extract_total_offers(self, soup: BeautifulSoup) -> int:
+        """Extract total offers count from page like '1 - 20 от общо 2000+ обяви'."""
+        page_info = soup.find(string=re.compile(r"от общо"))
+        if page_info and (parent := page_info.parent):
+            text = parent.get_text()
+            if match := re.search(r"от общо\s*(\d+)", text.replace("+", "")):
+                return int(match.group(1))
+        return 0
 
-    def extract_listings(self, soup):
+    def extract_listings(self, content: Any) -> Iterator[RawListing]:
+        """Extract listings from imoti.com HTML page."""
+        soup: BeautifulSoup = content
         list_container = soup.select_one("div.list")
         if not list_container:
             return
 
-        # Extract total offers from the page (only once per page)
         total_offers = self._extract_total_offers(soup)
+        scraped_at = datetime.now()
 
-        for item in list_container.select("div.item"):
-            title = self.get_text("span.type", item)
-            price_text = self.get_text("span.price", item)
-            location = self._extract_location(item)
-            location_info = self._extract_location_info(item)
+        for card in list_container.select("div.item"):
+            title = self.get_text("span.type", card)
+            details_url = self.get_href("a[href*='/obiava/']", card)
+            location_info = self._get_location_info(card)
+            description = self._get_description(card)
 
-            info_div = item.select_one("div.info")
-            description = ""
-            if info_div:
-                for child in info_div.children:
-                    if isinstance(child, str):
-                        text = child.strip()
-                        if text and "кв.м" not in text:
-                            description = text
-                            break
+            # Extract floor - try location_info first, then fall back to description
+            floor_text = self._get_floor(location_info)
+            if not floor_text:
+                floor_text = self._get_floor(description)
 
-            details_url = self.get_href("a[href*='/obiava/']", item)
+            yield RawListing(
+                site=self.config.name,
+                scraped_at=scraped_at,
+                details_url=details_url,
+                price_text=self.get_text("span.price", card),
+                location_text=self._get_location(card),
+                title=title,
+                description=description,
+                area_text=self._get_area(location_info),
+                floor_text=floor_text,
+                total_floors_text=self._get_total_floors(description),
+                agency_name=self._get_agency_name(card),
+                num_photos=self._get_num_photos(card),
+                ref_no=self._get_ref_from_url(details_url) if details_url else "",
+                total_offers=total_offers,
+                raw_link_description=self._get_raw_link_description(card),
+            )
 
-            contact_info = self.get_text("div.phones", item)
-            if contact_info.startswith("тел.:"):
-                contact_info = contact_info[5:].strip()
-
-            # Extract ref_no from details_url
-            ref_no = extract_ref_from_url(details_url) if details_url else ""
-
-            # Extract time from HTML comment
-            time = self._extract_time_from_comment(item)
-
-            # Extract num_photos
-            num_photos = self._extract_num_photos(item)
-
-            # Extract agency info from description
-            agency_name, agency_url = self._extract_agency_info(item)
-
-            raw = {
-                "price_text": price_text,
-                "title": title,
-                "location": location,
-                "location_info": location_info,
-                "description": description,
-                "details_url": details_url,
-                "contact_info": contact_info,
-                "ref_no": ref_no,
-                "total_offers": total_offers,
-                "time": time,
-                "num_photos": num_photos,
-                "agency_name": agency_name,
-                "agency_url": agency_url,
-            }
-
-            # Calculate price per m2
-            raw["price_per_m2"] = calculate_price_per_m2(raw)
-
-            yield raw
-
-    def get_total_pages(self, soup) -> int:
-        last_link = soup.select_one("a.big[href*='page-']")
-        if last_link:
-            for link in soup.select("a.big[href*='page-']"):
-                if "Последна" in link.get_text():
-                    href = link.get("href", "")
-                    match = re.search(r"page-(\d+)", href)
-                    if match:
-                        return int(match.group(1))
+    def get_total_pages(self, content: Any) -> int:
+        """Get total pages from pagination."""
+        soup: BeautifulSoup = content
+        for link in soup.select("a.big[href*='page-']"):
+            if "Последна" in link.get_text():
+                if match := re.search(r"page-(\d+)", link.get("href", "")):
+                    return int(match.group(1))
         return self.config.max_pages
 
-    def get_next_page_url(self, soup, current_url: str, page_number: int) -> str | None:
-        total = self.get_total_pages(soup)
-        if page_number > total:
-            return None
-
-        if not soup.select("div.item"):
+    def get_next_page_url(self, content: Any, current_url: str, page_number: int) -> str | None:
+        """Get URL for next page of results."""
+        soup: BeautifulSoup = content
+        if page_number > self.get_total_pages(soup) or not soup.select("div.item"):
             return None
 
         base_url = re.sub(r"/page-\d+", "", current_url)
-
         if "?" in base_url:
             path, query = base_url.split("?", 1)
             return f"{path}/page-{page_number}?{query}"
-
         return f"{base_url}/page-{page_number}"

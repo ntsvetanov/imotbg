@@ -10,6 +10,16 @@
         "url" : "https://www.alo.bg/obiavi/imoti-prodajbi/apartamenti-stai/?region_id=16&location_ids=3333&p[413]=1574%2C1575%2C1576&section_ids=292,298,299,305,307,835,318",
         "name":"Plovdiv Apartments",
         "folder": "plovdiv/apartments"
+      },
+      {
+        "url" : "https://www.alo.bg/obiavi/imoti-naemi/apartamenti/?region_id=22&location_ids=4342&section_ids=394,399,425,434,443,445,446,469,459,496,522,525,537,539,548,549,896,557",
+        "name":"Sofia Apartments",
+        "folder": "sofia/rentals"
+      }
+      {
+        "url": "https://www.alo.bg/obiavi/imoti-prodajbi/zemedelska-zemia-gradini-lozia-gora/?p[696]=2321,2322,2323",
+        "name":"Land",
+        "folder": "land"
       }
     ]
   },
@@ -53,6 +63,11 @@
         "url": "https://www.bulgarianproperties.bg/Search/index.php?stown_text1769203632=%E3%F0.+%CF%EB%EE%E2%E4%E8%E2&squarter_text1769203632=&stip_text1769203632=&minarea=&maxprice=&skeyword=&sadx=1&sady=&spredlog=innear&scntr=1&from_search_form=normal&c=%D2%DA%D0%D1%C8&stip%5B%5D=10&stown=2833",
         "name": "Plovdiv Apartments",
         "folder": "plovdiv/apartments"
+      },
+      {
+        "url": "https://www.bulgarianproperties.bg/Search/index.php?stown_text1770198374=%CF%EB%EE%E2%E4%E8%E2&squarter_text1770198374=&stip_text1770198374=&minarea=&maxprice=&skeyword=&sadx=&sady=2&spredlog=innear&scntr=1&from_search_form=normal&c=%D2%DA%D0%D1%C8&stown=2833",
+        "name": "Plovdiv Rentals",
+        "folder": "plovdiv/rentals"
       }
     ]
   },
@@ -135,6 +150,21 @@
         "url": "https://bazar.bg/obiavi/naemi-apartamenti/plovdiv?asize[]=2&asize[]=3&asize[]=4&asize[]=5&asize[]=6&currency=2&district_id[]=710&district_id[]=714&district_id[]=979&district_id[]=718&district_id[]=720&district_id[]=984&district_id[]=723&district_id[]=270&sort=default",
         "name": "Plovdiv Rentals",
         "folder": "plovdiv/rentals"
+      },
+      {
+        "url": "https://bazar.bg/obiavi/prodazhba-zemedelska-zemya/oblast-dobrich?currency=2",
+        "name": "Dobrich Land",
+        "folder": "land"
+      },
+      {
+        "url": "https://bazar.bg/obiavi/prodazhba-zemedelska-zemya/oblast-pleven?currency=2",
+        "name": "Pleven Land",
+        "folder": "land"
+      },
+      {
+        "url":"https://bazar.bg/obiavi/prodazhba-zemedelska-zemya/oblast-vratsa?currency=2",
+        "name": "Vratsa Land",
+        "folder": "land"
       }
     ]
   },
@@ -289,5 +319,4 @@
       }
     ]
   }
-
 }

@@ -1,25 +1,28 @@
 import gzip
 import tempfile
+from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
 
 from src.core.downloader import Downloader
-from src.core.parser import BaseParser, Field, SiteConfig
+from src.core.extractor import BaseExtractor, SiteConfig
+from src.core.models import RawListing
 
 
-class MockParser(BaseParser):
+class MockExtractor(BaseExtractor):
     config = SiteConfig(name="mocksite", base_url="https://mock.com")
-
-    class Fields:
-        title = Field("title", None)
-        price = Field("price", float)
 
     def extract_listings(self, content):
         for item in content.get("items", []):
-            yield item
+            yield RawListing(
+                site=self.config.name,
+                title=item.get("title"),
+                price_text=item.get("price"),
+                scraped_at=datetime.now(),
+            )
 
     def get_next_page_url(self, content, current_url: str, page_number: int):
         if page_number <= content.get("total_pages", 1):
@@ -32,42 +35,42 @@ class MockParser(BaseParser):
 
 class TestDownloaderInit:
     def test_init_default_folder(self):
-        parser = MockParser()
-        downloader = Downloader(parser)
+        extractor = MockExtractor()
+        downloader = Downloader(extractor)
 
-        assert downloader.parser == parser
-        assert downloader.config == parser.config
+        assert downloader.extractor == extractor
+        assert downloader.config == extractor.config
         assert downloader.result_folder == "results"
         assert downloader.timestamp is not None
 
     def test_init_custom_folder(self):
-        parser = MockParser()
-        downloader = Downloader(parser, result_folder="custom_results")
+        extractor = MockExtractor()
+        downloader = Downloader(extractor, result_folder="custom_results")
 
         assert downloader.result_folder == "custom_results"
 
     def test_init_uses_cloudscraper_when_configured(self):
-        parser = MockParser()
-        parser.config = SiteConfig(name="test", base_url="https://test.com", use_cloudscraper=True)
+        extractor = MockExtractor()
+        extractor.config = SiteConfig(name="test", base_url="https://test.com", use_cloudscraper=True)
 
         with patch("src.core.downloader.CloudscraperHttpClient") as mock_cloudscraper:
-            Downloader(parser)
+            Downloader(extractor)
             mock_cloudscraper.assert_called_once()
 
     def test_init_uses_http_client_by_default(self):
-        parser = MockParser()
+        extractor = MockExtractor()
 
         with patch("src.core.downloader.HttpClient") as mock_http:
-            Downloader(parser)
+            Downloader(extractor)
             mock_http.assert_called_once()
 
 
 class TestDownloaderDownload:
     @pytest.fixture
     def downloader(self):
-        parser = MockParser()
+        extractor = MockExtractor()
         with tempfile.TemporaryDirectory() as tmpdir:
-            downloader = Downloader(parser, result_folder=tmpdir)
+            downloader = Downloader(extractor, result_folder=tmpdir)
             yield downloader
 
     def test_download_single_page(self, downloader):
@@ -118,8 +121,8 @@ class TestDownloaderDownload:
 
                 assert result is None
 
-                fallback_dir = Path(downloader.result_folder) / "raw_html" / "mocksite"
-                fallback_files = list(fallback_dir.glob("*.html.gz"))
+                # Fallback files are saved with year/month path structure
+                fallback_files = list(Path(downloader.result_folder).glob("**/raw_html/mocksite/*.html.gz"))
                 assert len(fallback_files) == 1
 
     def test_download_with_folder(self, downloader):
@@ -135,10 +138,10 @@ class TestDownloaderDownload:
 
 class TestDownloaderSaveFallback:
     def test_save_fallback_creates_gzip(self):
-        parser = MockParser()
+        extractor = MockExtractor()
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            downloader = Downloader(parser, result_folder=tmpdir)
+            downloader = Downloader(extractor, result_folder=tmpdir)
             html_content = "<html><body>Test</body></html>"
 
             result = downloader._save_fallback(html_content, None, 0)
@@ -151,11 +154,11 @@ class TestDownloaderSaveFallback:
                 assert content == html_content
 
     def test_save_fallback_json_extension(self):
-        parser = MockParser()
-        parser.config = SiteConfig(name="test", base_url="https://test.com", source_type="json")
+        extractor = MockExtractor()
+        extractor.config = SiteConfig(name="test", base_url="https://test.com", source_type="json")
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            downloader = Downloader(parser, result_folder=tmpdir)
+            downloader = Downloader(extractor, result_folder=tmpdir)
 
             result = downloader._save_fallback('{"data": "test"}', None, 0)
 
@@ -164,8 +167,8 @@ class TestDownloaderSaveFallback:
 
 class TestDownloaderFetchWithRaw:
     def test_fetch_html_returns_tuple(self):
-        parser = MockParser()
-        downloader = Downloader(parser)
+        extractor = MockExtractor()
+        downloader = Downloader(extractor)
 
         with patch.object(downloader.http_client, "fetch", return_value="<html><body>Test</body></html>"):
             raw, parsed = downloader._fetch_with_raw("https://test.com")
@@ -174,9 +177,9 @@ class TestDownloaderFetchWithRaw:
             assert parsed is not None
 
     def test_fetch_json_returns_tuple(self):
-        parser = MockParser()
-        parser.config = SiteConfig(name="test", base_url="https://test.com", source_type="json")
-        downloader = Downloader(parser)
+        extractor = MockExtractor()
+        extractor.config = SiteConfig(name="test", base_url="https://test.com", source_type="json")
+        downloader = Downloader(extractor)
 
         with patch.object(downloader.http_client, "fetch_json", return_value={"data": "test"}):
             raw, parsed = downloader._fetch_with_raw("https://test.com")
@@ -189,8 +192,8 @@ class TestDownloaderTimestamp:
     def test_timestamp_format(self):
         import re
 
-        parser = MockParser()
-        downloader = Downloader(parser)
+        extractor = MockExtractor()
+        downloader = Downloader(extractor)
 
         pattern = r"^\d{4}_\d{2}_\d{2}_\d{2}_\d{2}_\d{2}$"
         assert re.match(pattern, downloader.timestamp)

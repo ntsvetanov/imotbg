@@ -1,20 +1,10 @@
 """
-Normalization module for property listing data.
+Alias dictionaries for normalizing Bulgarian real estate data.
 
-Provides alias mappings and normalization functions to convert
-various input formats (from different sites, URLs, transliterations)
-to standardized enum values.
-
-Features:
-- Soft validation: returns original value if no match found
-- Unknown value tracking: collects unmatched values for review
-- URL + text parsing: tries URL patterns first, then text content
+These mappings convert various text formats (Bulgarian, transliterated, API values)
+to standardized enum values for offer types, property types, cities, currencies,
+and neighborhoods.
 """
-
-import re
-from collections import defaultdict
-from enum import Enum
-from typing import TypeVar
 
 from src.core.enums import (
     City,
@@ -24,18 +14,6 @@ from src.core.enums import (
     PropertyType,
     SofiaNeighborhood,
 )
-from src.logger_setup import get_logger
-
-logger = get_logger(__name__)
-
-# Track unknown values during session
-_unknown_values: dict[str, set[str]] = defaultdict(set)
-
-T = TypeVar("T", bound=Enum)
-
-# =============================================================================
-# OFFER TYPE ALIASES
-# =============================================================================
 
 OFFER_TYPE_ALIASES: dict[str, OfferType] = {
     # Bulgarian text
@@ -58,7 +36,7 @@ OFFER_TYPE_ALIASES: dict[str, OfferType] = {
     "pod-naem": OfferType.RENT,
     "dava-pod-naem": OfferType.RENT,
     "naemi": OfferType.RENT,
-    # API values (e.g., HomesBg)
+    # API values
     "sell": OfferType.SALE,
     "apartmentsell": OfferType.SALE,
     "housesell": OfferType.SALE,
@@ -68,10 +46,6 @@ OFFER_TYPE_ALIASES: dict[str, OfferType] = {
     "apartmentrent": OfferType.RENT,
     "houserent": OfferType.RENT,
 }
-
-# =============================================================================
-# PROPERTY TYPE ALIASES
-# =============================================================================
 
 PROPERTY_TYPE_ALIASES: dict[str, PropertyType] = {
     # Bulgarian text
@@ -136,10 +110,6 @@ PROPERTY_TYPE_ALIASES: dict[str, PropertyType] = {
     "parkomyasto": PropertyType.PARKING,
 }
 
-# =============================================================================
-# CITY ALIASES
-# =============================================================================
-
 CITY_ALIASES: dict[str, City] = {
     # Bulgarian - lowercase for matching
     "софия": City.SOFIA,
@@ -169,10 +139,6 @@ CITY_ALIASES: dict[str, City] = {
     "grad-burgas": City.BURGAS,
 }
 
-# =============================================================================
-# CURRENCY ALIASES
-# =============================================================================
-
 CURRENCY_ALIASES: dict[str, Currency] = {
     "€": Currency.EUR,
     "eur": Currency.EUR,
@@ -183,10 +149,6 @@ CURRENCY_ALIASES: dict[str, Currency] = {
     "bgn": Currency.BGN,
     "лева": Currency.BGN,
 }
-
-# =============================================================================
-# SOFIA NEIGHBORHOOD ALIASES
-# =============================================================================
 
 SOFIA_NEIGHBORHOOD_ALIASES: dict[str, SofiaNeighborhood] = {
     # Normalized lowercase Bulgarian -> enum
@@ -336,10 +298,6 @@ SOFIA_NEIGHBORHOOD_ALIASES: dict[str, SofiaNeighborhood] = {
     "banishora": SofiaNeighborhood.BANISHORA,
 }
 
-# =============================================================================
-# PLOVDIV NEIGHBORHOOD ALIASES
-# =============================================================================
-
 PLOVDIV_NEIGHBORHOOD_ALIASES: dict[str, PlovdivNeighborhood] = {
     # Bulgarian - lowercase
     "център": PlovdivNeighborhood.CENTER,
@@ -398,329 +356,3 @@ PLOVDIV_NEIGHBORHOOD_ALIASES: dict[str, PlovdivNeighborhood] = {
     "izgrev": PlovdivNeighborhood.IZGREV,
     "kapana": PlovdivNeighborhood.KAPANA,
 }
-
-# =============================================================================
-# KNOWN AGENCIES (for normalization)
-# =============================================================================
-
-KNOWN_AGENCIES: dict[str, str] = {
-    # lowercase -> canonical name
-    "bulgarian properties": "Bulgarian Properties",
-    "bulgarianproperties": "Bulgarian Properties",
-    "suprimmo": "Suprimmo",
-    "luximmo": "Luximmo",
-    "arco real estate": "Arco Real Estate",
-    "arco": "Arco Real Estate",
-    "address": "Address",
-    "явлена": "Явлена",
-    "yavlena": "Явлена",
-    "мирела": "Мирела",
-    "mirela": "Мирела",
-    "имоти бг": "Имоти БГ",
-    "era": "ERA",
-    "century 21": "Century 21",
-    "century21": "Century 21",
-    "re/max": "RE/MAX",
-    "remax": "RE/MAX",
-    "home tour": "Home Tour",
-    "imoti.net": "Imoti.net",
-    "homes.bg": "Homes.bg",
-    "imot.bg": "Imot.bg",
-    "частно лице": "Частно лице",
-    "частен": "Частно лице",
-    "private": "Частно лице",
-}
-
-# =============================================================================
-# HELPER FUNCTIONS
-# =============================================================================
-
-
-def _find_in_text(text: str, aliases: dict[str, T]) -> T | None:
-    """Search for any alias within the text (not just exact match)."""
-    if not text:
-        return None
-    text_lower = text.lower()
-    # Sort by length descending to match longer patterns first
-    for alias in sorted(aliases.keys(), key=len, reverse=True):
-        if alias in text_lower:
-            return aliases[alias]
-    return None
-
-
-def _find_exact(text: str, aliases: dict[str, T]) -> T | None:
-    """Exact match lookup."""
-    if not text:
-        return None
-    return aliases.get(text.lower().strip())
-
-
-# =============================================================================
-# NORMALIZATION FUNCTIONS
-# =============================================================================
-
-
-def normalize_offer_type(text: str = "", url: str = "") -> OfferType | str:
-    """
-    Normalize offer type. Tries URL first, then text content.
-    Returns original value if no match (soft validation).
-
-    Args:
-        text: Text content (e.g., title) to search
-        url: URL to search for patterns
-
-    Returns:
-        OfferType enum if matched, otherwise original string
-    """
-    # Try URL first (more reliable)
-    if url:
-        result = _find_in_text(url, OFFER_TYPE_ALIASES)
-        if result:
-            return result
-
-    # Try text content
-    if text:
-        result = _find_in_text(text, OFFER_TYPE_ALIASES)
-        if result:
-            return result
-
-    # Soft validation: log and return original
-    original = text or url
-    if original:
-        _unknown_values["offer_type"].add(original[:100])
-        logger.debug(f"Unknown offer_type: {original[:100]}")
-    return original
-
-
-def normalize_property_type(text: str = "", url: str = "") -> PropertyType | str:
-    """
-    Normalize property type. Tries URL first, then text content.
-    Returns original value if no match (soft validation).
-
-    Args:
-        text: Text content (e.g., title) to search
-        url: URL to search for patterns
-
-    Returns:
-        PropertyType enum if matched, otherwise original string
-    """
-    # Try URL first
-    if url:
-        result = _find_in_text(url, PROPERTY_TYPE_ALIASES)
-        if result:
-            return result
-
-    # Try text content
-    if text:
-        result = _find_in_text(text, PROPERTY_TYPE_ALIASES)
-        if result:
-            return result
-
-    # Soft validation
-    original = text or url
-    if original:
-        _unknown_values["property_type"].add(original[:100])
-        logger.debug(f"Unknown property_type: {original[:100]}")
-    return original
-
-
-def normalize_city(location: str) -> City | str:
-    """
-    Normalize city from location string.
-    Handles formats like "гр. София", "град Пловдив", "Sofia", etc.
-
-    Args:
-        location: Location string that may contain city
-
-    Returns:
-        City enum if matched, otherwise extracted city string
-    """
-    if not location:
-        return ""
-
-    # Clean the location string
-    location_clean = location.lower().strip()
-    location_clean = re.sub(r"^(гр\.|град|с\.)\s*", "", location_clean)
-
-    # Try exact match first
-    result = _find_exact(location_clean, CITY_ALIASES)
-    if result:
-        return result
-
-    # Try substring match
-    result = _find_in_text(location, CITY_ALIASES)
-    if result:
-        return result
-
-    # Extract first part before comma
-    first_part = location.split(",")[0].strip()
-    first_part_clean = re.sub(r"^(гр\.|град|с\.)\s*", "", first_part.lower())
-    result = _find_exact(first_part_clean, CITY_ALIASES)
-    if result:
-        return result
-
-    # Soft validation - return cleaned first part
-    if first_part:
-        # Only track if it looks like a city name (not too long)
-        if len(first_part) < 30:
-            _unknown_values["city"].add(first_part[:50])
-            logger.debug(f"Unknown city: {first_part[:50]}")
-        # Return cleaned version
-        cleaned = re.sub(r"^(гр\.|град|с\.)\s*", "", first_part)
-        return cleaned.strip()
-    return ""
-
-
-def normalize_neighborhood(
-    neighborhood: str,
-    city: City | str = "",
-) -> SofiaNeighborhood | PlovdivNeighborhood | str:
-    """
-    Normalize neighborhood based on city context.
-
-    Args:
-        neighborhood: Neighborhood name to normalize
-        city: City enum or string to determine which alias dict to use
-
-    Returns:
-        Neighborhood enum if matched, otherwise cleaned string
-    """
-    if not neighborhood:
-        return ""
-
-    neighborhood_clean = neighborhood.lower().strip()
-    # Remove common prefixes
-    neighborhood_clean = re.sub(r"^(кв\.|квартал|ж\.к\.|ж\.к|жк)\s*", "", neighborhood_clean)
-    neighborhood_clean = neighborhood_clean.strip()
-
-    # Determine city for context
-    is_sofia = city == City.SOFIA or (isinstance(city, str) and "соф" in city.lower())
-    is_plovdiv = city == City.PLOVDIV or (isinstance(city, str) and "плов" in city.lower())
-
-    # Select alias dict based on city
-    if is_sofia:
-        result = _find_exact(neighborhood_clean, SOFIA_NEIGHBORHOOD_ALIASES)
-        if result:
-            return result
-        result = _find_in_text(neighborhood, SOFIA_NEIGHBORHOOD_ALIASES)
-        if result:
-            return result
-    elif is_plovdiv:
-        result = _find_exact(neighborhood_clean, PLOVDIV_NEIGHBORHOOD_ALIASES)
-        if result:
-            return result
-        result = _find_in_text(neighborhood, PLOVDIV_NEIGHBORHOOD_ALIASES)
-        if result:
-            return result
-    else:
-        # Try both (Sofia first as it's more common)
-        result = _find_exact(neighborhood_clean, SOFIA_NEIGHBORHOOD_ALIASES)
-        if result:
-            return result
-        result = _find_exact(neighborhood_clean, PLOVDIV_NEIGHBORHOOD_ALIASES)
-        if result:
-            return result
-        result = _find_in_text(neighborhood, SOFIA_NEIGHBORHOOD_ALIASES)
-        if result:
-            return result
-        result = _find_in_text(neighborhood, PLOVDIV_NEIGHBORHOOD_ALIASES)
-        if result:
-            return result
-
-    # Soft validation
-    if neighborhood_clean and len(neighborhood_clean) < 50:
-        _unknown_values["neighborhood"].add(neighborhood[:50])
-        logger.debug(f"Unknown neighborhood: {neighborhood[:50]}")
-
-    # Return cleaned version
-    return neighborhood_clean.title() if neighborhood_clean else neighborhood
-
-
-def normalize_currency(text: str) -> Currency | str:
-    """
-    Normalize currency from price text.
-    Prioritizes EUR detection since price texts often show EUR first with BGN equivalent.
-
-    Args:
-        text: Price text containing currency symbol or name
-
-    Returns:
-        Currency enum if matched, otherwise empty string
-    """
-    if not text:
-        return ""
-
-    text_lower = text.lower()
-
-    # Check for EUR first (priority) since prices often show EUR with BGN equivalent
-    for alias, currency in CURRENCY_ALIASES.items():
-        if currency == Currency.EUR and alias in text_lower:
-            return Currency.EUR
-
-    # Then check for BGN
-    for alias, currency in CURRENCY_ALIASES.items():
-        if currency == Currency.BGN and alias in text_lower:
-            return Currency.BGN
-
-    return ""
-
-
-def normalize_agency(agency: str) -> str:
-    """
-    Normalize agency name.
-    Returns canonical form if known, otherwise cleaned original.
-
-    Args:
-        agency: Raw agency name
-
-    Returns:
-        Normalized agency name
-    """
-    if not agency:
-        return ""
-
-    agency_lower = agency.lower().strip()
-
-    # Check known agencies
-    if agency_lower in KNOWN_AGENCIES:
-        return KNOWN_AGENCIES[agency_lower]
-
-    # Clean up: strip whitespace, title case for unknown
-    normalized = agency.strip()
-
-    # Track unknown agencies (only if not too long and not obviously generic)
-    if normalized and len(normalized) < 50:
-        _unknown_values["agency"].add(normalized[:50])
-
-    return normalized
-
-
-# =============================================================================
-# SESSION TRACKING
-# =============================================================================
-
-
-def get_unknown_values() -> dict[str, set[str]]:
-    """Get all unknown values encountered during this session."""
-    return dict(_unknown_values)
-
-
-def clear_unknown_values() -> None:
-    """Clear the unknown values tracker (call between scrape runs)."""
-    _unknown_values.clear()
-
-
-def log_unknown_values_summary() -> None:
-    """Log a summary of all unknown values found."""
-    if not _unknown_values:
-        logger.info("No unknown values encountered during this session.")
-        return
-
-    logger.warning("=== Unknown values summary ===")
-    for field, values in sorted(_unknown_values.items()):
-        sample = list(values)[:5]
-        remaining = len(values) - 5
-        sample_str = ", ".join(f"'{v}'" for v in sample)
-        if remaining > 0:
-            sample_str += f" ... and {remaining} more"
-        logger.warning(f"  {field}: {len(values)} unknown - [{sample_str}]")

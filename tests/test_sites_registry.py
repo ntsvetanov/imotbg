@@ -1,36 +1,36 @@
 import pytest
 
-from src.sites import SITE_PARSERS, get_parser
-from src.sites.bazarbg import BazarBgParser
-from src.sites.homesbg import HomesBgParser
-from src.sites.imotbg import ImotBgParser
-from src.sites.imoticom import ImotiComParser
-from src.sites.imotinet import ImotiNetParser
+from src.sites import SITE_EXTRACTORS, get_extractor
+from src.sites.bazarbg import BazarBgExtractor
+from src.sites.homesbg import HomesBgExtractor
+from src.sites.imotbg import ImotBgExtractor
+from src.sites.imoticom import ImotiComExtractor
+from src.sites.imotinet import ImotiNetExtractor
 
 
-class TestSiteParsersRegistry:
+class TestSiteExtractorsRegistry:
     def test_registry_contains_bazarbg(self):
-        assert "BazarBg" in SITE_PARSERS
-        assert SITE_PARSERS["BazarBg"] == BazarBgParser
+        assert "BazarBg" in SITE_EXTRACTORS
+        assert SITE_EXTRACTORS["BazarBg"] == BazarBgExtractor
 
     def test_registry_contains_imotbg(self):
-        assert "ImotBg" in SITE_PARSERS
-        assert SITE_PARSERS["ImotBg"] == ImotBgParser
+        assert "ImotBg" in SITE_EXTRACTORS
+        assert SITE_EXTRACTORS["ImotBg"] == ImotBgExtractor
 
     def test_registry_contains_imotinet(self):
-        assert "ImotiNet" in SITE_PARSERS
-        assert SITE_PARSERS["ImotiNet"] == ImotiNetParser
+        assert "ImotiNet" in SITE_EXTRACTORS
+        assert SITE_EXTRACTORS["ImotiNet"] == ImotiNetExtractor
 
     def test_registry_contains_homesbg(self):
-        assert "HomesBg" in SITE_PARSERS
-        assert SITE_PARSERS["HomesBg"] == HomesBgParser
+        assert "HomesBg" in SITE_EXTRACTORS
+        assert SITE_EXTRACTORS["HomesBg"] == HomesBgExtractor
 
     def test_registry_contains_imoticom(self):
-        assert "ImotiCom" in SITE_PARSERS
-        assert SITE_PARSERS["ImotiCom"] == ImotiComParser
+        assert "ImotiCom" in SITE_EXTRACTORS
+        assert SITE_EXTRACTORS["ImotiCom"] == ImotiComExtractor
 
-    def test_registry_has_all_parsers(self):
-        expected_parsers = {
+    def test_registry_has_all_extractors(self):
+        expected_extractors = {
             "AloBg",
             "BazarBg",
             "BulgarianProperties",
@@ -42,36 +42,36 @@ class TestSiteParsersRegistry:
             "Luximmo",
             "Suprimmo",
         }
-        assert set(SITE_PARSERS.keys()) == expected_parsers
+        assert set(SITE_EXTRACTORS.keys()) == expected_extractors
 
 
-class TestGetParser:
-    def test_get_parser_bazarbg(self):
-        parser = get_parser("BazarBg")
-        assert isinstance(parser, BazarBgParser)
+class TestGetExtractor:
+    def test_get_extractor_bazarbg(self):
+        extractor = get_extractor("BazarBg")
+        assert isinstance(extractor, BazarBgExtractor)
 
-    def test_get_parser_imotbg(self):
-        parser = get_parser("ImotBg")
-        assert isinstance(parser, ImotBgParser)
+    def test_get_extractor_imotbg(self):
+        extractor = get_extractor("ImotBg")
+        assert isinstance(extractor, ImotBgExtractor)
 
-    def test_get_parser_imotinet(self):
-        parser = get_parser("ImotiNet")
-        assert isinstance(parser, ImotiNetParser)
+    def test_get_extractor_imotinet(self):
+        extractor = get_extractor("ImotiNet")
+        assert isinstance(extractor, ImotiNetExtractor)
 
-    def test_get_parser_homesbg(self):
-        parser = get_parser("HomesBg")
-        assert isinstance(parser, HomesBgParser)
+    def test_get_extractor_homesbg(self):
+        extractor = get_extractor("HomesBg")
+        assert isinstance(extractor, HomesBgExtractor)
 
-    def test_get_parser_imoticom(self):
-        parser = get_parser("ImotiCom")
-        assert isinstance(parser, ImotiComParser)
+    def test_get_extractor_imoticom(self):
+        extractor = get_extractor("ImotiCom")
+        assert isinstance(extractor, ImotiComExtractor)
 
-    def test_get_parser_unknown_site(self):
+    def test_get_extractor_unknown_site(self):
         with pytest.raises(ValueError) as exc_info:
-            get_parser("UnknownSite")
+            get_extractor("UnknownSite")
         assert "Unknown site: UnknownSite" in str(exc_info.value)
 
-    def test_get_parser_returns_new_instance(self):
-        parser1 = get_parser("ImotBg")
-        parser2 = get_parser("ImotBg")
-        assert parser1 is not parser2
+    def test_get_extractor_returns_new_instance(self):
+        extractor1 = get_extractor("ImotBg")
+        extractor2 = get_extractor("ImotBg")
+        assert extractor1 is not extractor2

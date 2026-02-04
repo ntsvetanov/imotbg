@@ -1,144 +1,125 @@
+"""Extractor for luximmo.bg real estate listings."""
+
 import re
+from datetime import datetime
+from typing import Any, Iterator
 
-from src.core.parser import BaseParser, Field, SiteConfig
-from src.core.transforms import (
-    calculate_price_per_m2,
-    extract_area,
-    extract_city_with_prefix,
-    extract_currency,
-    extract_neighborhood_with_prefix,
-    extract_offer_type,
-    extract_property_type,
-    is_without_dds,
-    parse_price,
-)
+from bs4 import BeautifulSoup, Tag
+
+from src.core.extractor import BaseExtractor, SiteConfig
+from src.core.models import RawListing
 
 
-def extract_ref_from_url(url: str) -> str:
-    """Extract reference number from URL like 'luksozen-imot-43445-...'."""
-    if not url:
-        return ""
-    match = re.search(r"imot-(\d+)", url)
-    return match.group(1) if match else ""
+class LuximmoExtractor(BaseExtractor):
+    """Extractor for luximmo.bg."""
 
-
-def _calculate_listing_price_per_m2(raw: dict) -> str:
-    """Calculate price per m2 from raw listing data."""
-    price = parse_price(raw.get("price_text", ""))
-    area_str = extract_area(raw.get("area_text", ""))
-    return calculate_price_per_m2(price, area_str)
-
-
-class LuximmoParser(BaseParser):
     config = SiteConfig(
         name="luximmo",
         base_url="https://www.luximmo.bg",
         encoding="windows-1251",
         rate_limit_seconds=1.5,
-        use_cloudscraper=True,  # Bypass Cloudflare protection
+        use_cloudscraper=True,
     )
 
-    class Fields:
-        price = Field("price_text", parse_price)
-        currency = Field("price_text", extract_currency)
-        without_dds = Field("price_text", is_without_dds)
-        city = Field("location", extract_city_with_prefix)
-        neighborhood = Field("location", extract_neighborhood_with_prefix)
-        raw_title = Field("title")
-        property_type = Field("title", extract_property_type)
-        offer_type = Field("offer_type")
-        raw_description = Field("description")
-        details_url = Field("details_url")
-        area = Field("area_text", extract_area)
-        ref_no = Field("ref_no")
-        floor = Field("floor")
-        agency = Field("agency_name")
-        num_photos = Field("num_photos")
-        total_offers = Field("total_offers")
-        price_per_m2 = Field("price_per_m2")
-        search_url = Field("search_url")
+    def _extract_total_offers(self, soup: BeautifulSoup) -> int:
+        """Extract total offers count from page.
 
-    def extract_listings(self, soup):
-        # Find all property cards
+        The total is shown in format: "1102 оферти / Страницa 1 от 46"
+        """
+        elem = soup.select_one("div.found-properties")
+        if elem and (match := re.search(r"(\d+)\s*оферт", elem.get_text())):
+            return int(match.group(1))
+        return 0
+
+    def _detect_offer_type(self, title: str, url: str) -> str:
+        combined = f"{title} {url}".lower()
+        if "продава" in combined or "prodava" in combined or "prodazhba" in combined:
+            return "продава"
+        if "наем" in combined or "naem" in combined:
+            return "наем"
+        return ""
+
+    def _get_price(self, card: Tag) -> str:
+        elem = card.select_one(".card-price")
+        if not elem:
+            return ""
+        text = elem.get_text(strip=True).replace("\xa0", " ")
+        if match := re.search(r"([\d\s]+)\s*€", text):
+            return f"{match.group(1).replace(' ', '')} €"
+        return text
+
+    def _get_location(self, card: Tag) -> str:
+        elem = card.select_one(".card-loc-dis .text-dark")
+        if not elem:
+            return ""
+        text = elem.get_text(separator=" ", strip=True)
+        return re.sub(r"\s*карта\s*$", "", text).strip()
+
+    def _get_detail(self, card: Tag, field: str) -> str:
+        elem = card.select_one(".card-dis")
+        if not elem:
+            return ""
+        text = elem.get_text()
+        patterns = {
+            "area": r"Площ:\s*([\d.,]+\s*м)",
+            "floor": r"Етаж:\s*(\d+)",
+            "total_floors": r"Етажност:\s*(\d+)",
+        }
+        if match := re.search(patterns[field], text):
+            return match.group(1)
+        return ""
+
+    def _get_badges(self, card: Tag) -> str:
+        return self.extract_badges(card, ".badge-rights, .card-badge")
+
+    def _get_num_photos(self, card: Tag) -> int:
+        counter = card.select_one(".counter-wrapper-card .lastNum")
+        if counter and counter.get_text(strip=True).isdigit():
+            return int(counter.get_text(strip=True))
+        slides = card.select("div.slick-slide")
+        if slides:
+            return len(slides)
+        return len(card.select("div.carousel-item, div.card-img"))
+
+    def extract_listings(self, content: Any) -> Iterator[RawListing]:
+        soup: BeautifulSoup = content
+        total_offers = self._extract_total_offers(soup)
+        scraped_at = datetime.now()
+
         for card in soup.select("div.card.mb-4"):
-            # Skip if no card-url (not a property listing)
             url_elem = card.select_one("a.card-url")
             if not url_elem:
                 continue
 
             details_url = url_elem.get("href", "")
-
-            # Extract title
             title_elem = card.select_one("h4.card-title")
             title = title_elem.get_text(strip=True) if title_elem else ""
+            offer_type = self._detect_offer_type(title, details_url)
+            title = self.prepend_offer_type(title, offer_type)
 
-            # Extract price - look for the Euro price
-            price_elem = card.select_one(".card-price")
-            price_text = ""
-            if price_elem:
-                # Get text content, prefer EUR
-                price_text = price_elem.get_text(strip=True)
-                # Try to find the EUR value specifically
-                eur_match = re.search(r"([\d\s]+)\s*€", price_text.replace("\xa0", " "))
-                if eur_match:
-                    price_text = eur_match.group(1).replace(" ", "") + " €"
+            first_img = card.select_one("div.card-img")
+            ref_match = re.search(r"imot-(\d+)", details_url)
 
-            # Extract location
-            location_elem = card.select_one(".card-loc-dis .text-dark")
-            location = ""
-            if location_elem:
-                location = location_elem.get_text(separator=" ", strip=True)
-                # Clean up the location string - remove map link text and extra whitespace
-                location = re.sub(r"\s*карта\s*$", "", location)
-                location = re.sub(r"\s+", " ", location)
+            yield RawListing(
+                site=self.config.name,
+                scraped_at=scraped_at,
+                details_url=details_url,
+                price_text=self._get_price(card),
+                location_text=self._get_location(card),
+                title=title,
+                description=self._get_badges(card),
+                area_text=self._get_detail(card, "area"),
+                floor_text=self._get_detail(card, "floor"),
+                total_floors_text=self._get_detail(card, "total_floors"),
+                agency_name="Luximmo",
+                num_photos=self._get_num_photos(card),
+                ref_no=ref_match.group(1) if ref_match else "",
+                total_offers=total_offers,
+                raw_link_description=first_img.get("title", "") if first_img else "",
+            )
 
-            # Extract area
-            area_text = ""
-            area_elem = card.select_one(".card-dis")
-            if area_elem:
-                area_match = re.search(r"Площ:\s*([\d.,]+\s*м)", area_elem.get_text())
-                if area_match:
-                    area_text = area_match.group(1)
-
-            # Extract floor
-            floor = ""
-            if area_elem:
-                floor_match = re.search(r"Етаж:\s*(\d+)", area_elem.get_text())
-                if floor_match:
-                    floor = floor_match.group(1)
-
-            # Extract reference number from URL
-            ref_no = extract_ref_from_url(details_url)
-
-            # Determine offer type from URL - use shared normalization
-            offer_type = extract_offer_type(title, details_url)
-
-            # Count photos
-            photos = card.select("div.carousel-item, div.card-img img")
-            num_photos = len(photos) if photos else 0
-
-            raw = {
-                "price_text": price_text,
-                "title": title,
-                "location": location,
-                "area_text": area_text,
-                "floor": floor,
-                "description": "",
-                "details_url": details_url,
-                "ref_no": ref_no,
-                "offer_type": offer_type,
-                "agency_name": "Luximmo",
-                "num_photos": num_photos,
-                "total_offers": 0,
-            }
-
-            # Calculate price per m2
-            raw["price_per_m2"] = _calculate_listing_price_per_m2(raw)
-
-            yield raw
-
-    def get_total_pages(self, soup) -> int:
-        """Extract total pages from pagination"""
+    def get_total_pages(self, content: Any) -> int:
+        soup: BeautifulSoup = content
         pagination = soup.select_one("ul.pagination")
         if not pagination:
             return 1
@@ -146,43 +127,34 @@ class LuximmoParser(BaseParser):
         max_page = 1
         for link in pagination.select("a.page-link"):
             href = link.get("href", "")
-            # Match indexN.html pattern
-            match = re.search(r"index(\d+)\.html", href)
-            if match:
-                page_num = int(match.group(1)) + 1  # index0 = page 2, etc.
-                max_page = max(max_page, page_num)
-            # Also check text content for last page number
+            if match := re.search(r"index(\d+)\.html", href):
+                max_page = max(max_page, int(match.group(1)) + 1)
             text = link.get_text(strip=True)
             if text.isdigit():
                 max_page = max(max_page, int(text))
-
         return max_page
 
-    def get_next_page_url(self, soup, current_url: str, page_number: int) -> str | None:
-        # Check if there are any listings on current page
-        has_items = bool(soup.select("div.card.mb-4 a.card-url"))
-        if not has_items:
+    def get_next_page_url(self, content: Any, current_url: str, page_number: int) -> str | None:
+        soup: BeautifulSoup = content
+        if not soup.select("div.card.mb-4 a.card-url"):
             return None
 
-        total = self.get_total_pages(soup)
-        if page_number > total:
+        if page_number > self.get_total_pages(soup):
             return None
 
-        # Luximmo uses: index.html (page 1), index1.html (page 2), index2.html (page 3), etc.
-        # So page_number 2 -> index1.html, page_number 3 -> index2.html
-        page_index = page_number - 1  # Convert to 0-based index for URL
+        page_index = page_number - 1
 
-        # Replace the index part of the URL
         if "index.html" in current_url:
             if page_index == 0:
-                return current_url  # Stay on index.html for page 1
+                return current_url
             return current_url.replace("index.html", f"index{page_index}.html")
-        elif re.search(r"index\d+\.html", current_url):
+
+        if re.search(r"index\d+\.html", current_url):
             if page_index == 0:
                 return re.sub(r"index\d+\.html", "index.html", current_url)
             return re.sub(r"index\d+\.html", f"index{page_index}.html", current_url)
-        else:
-            # URL doesn't have index pattern, append it
-            if current_url.endswith("/"):
-                return f"{current_url}index{page_index}.html" if page_index > 0 else f"{current_url}index.html"
-            return f"{current_url}/index{page_index}.html" if page_index > 0 else f"{current_url}/index.html"
+
+        base = current_url.rstrip("/")
+        if page_index > 0:
+            return f"{base}/index{page_index}.html"
+        return f"{base}/index.html"

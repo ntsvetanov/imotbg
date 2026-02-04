@@ -1,6 +1,6 @@
 import mailtrap as mt
 
-from config import app_config
+from src.config import app_config
 from src.logger_setup import get_logger
 
 logger = get_logger(__name__)

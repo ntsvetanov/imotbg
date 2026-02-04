@@ -13,7 +13,7 @@ class TestEmailClientInit:
         mock_config.mailtrap_token = "test-token"
 
         with patch.dict(sys.modules, {"mailtrap": mock_mt}):
-            with patch("config.app_config", mock_config):
+            with patch("src.config.app_config", mock_config):
                 # Need to reload/reimport to pick up the patched modules
                 from src.infrastructure.clients.email_client import EmailClient
 
@@ -28,7 +28,7 @@ class TestEmailClientInit:
         mock_config.mailtrap_token = "test-token"
 
         with patch.dict(sys.modules, {"mailtrap": mock_mt}):
-            with patch("config.app_config", mock_config):
+            with patch("src.config.app_config", mock_config):
                 from src.infrastructure.clients.email_client import EmailClient
 
                 client = EmailClient()
@@ -42,7 +42,7 @@ class TestEmailClientInit:
         mock_config.mailtrap_token = "test-token-123"
 
         with patch.dict(sys.modules, {"mailtrap": mock_mt}):
-            with patch("config.app_config", mock_config):
+            with patch("src.config.app_config", mock_config):
                 from src.infrastructure.clients.email_client import EmailClient
 
                 # Clear cache to force reimport
@@ -67,7 +67,7 @@ class TestEmailClientSendEmail:
         mock_mt, mock_config = mock_setup
 
         with patch.dict(sys.modules, {"mailtrap": mock_mt}):
-            with patch("config.app_config", mock_config):
+            with patch("src.config.app_config", mock_config):
                 if "src.infrastructure.clients.email_client" in sys.modules:
                     del sys.modules["src.infrastructure.clients.email_client"]
 
@@ -84,7 +84,7 @@ class TestEmailClientSendEmail:
         mock_mt, mock_config = mock_setup
 
         with patch.dict(sys.modules, {"mailtrap": mock_mt}):
-            with patch("config.app_config", mock_config):
+            with patch("src.config.app_config", mock_config):
                 if "src.infrastructure.clients.email_client" in sys.modules:
                     del sys.modules["src.infrastructure.clients.email_client"]
 
@@ -100,7 +100,7 @@ class TestEmailClientSendEmail:
         mock_mt, mock_config = mock_setup
 
         with patch.dict(sys.modules, {"mailtrap": mock_mt}):
-            with patch("config.app_config", mock_config):
+            with patch("src.config.app_config", mock_config):
                 if "src.infrastructure.clients.email_client" in sys.modules:
                     del sys.modules["src.infrastructure.clients.email_client"]
 
@@ -115,7 +115,7 @@ class TestEmailClientSendEmail:
         mock_mt, mock_config = mock_setup
 
         with patch.dict(sys.modules, {"mailtrap": mock_mt}):
-            with patch("config.app_config", mock_config):
+            with patch("src.config.app_config", mock_config):
                 if "src.infrastructure.clients.email_client" in sys.modules:
                     del sys.modules["src.infrastructure.clients.email_client"]
 
@@ -134,7 +134,7 @@ class TestEmailClientSendEmail:
         mock_mt.Mail.return_value = mock_mail
 
         with patch.dict(sys.modules, {"mailtrap": mock_mt}):
-            with patch("config.app_config", mock_config):
+            with patch("src.config.app_config", mock_config):
                 if "src.infrastructure.clients.email_client" in sys.modules:
                     del sys.modules["src.infrastructure.clients.email_client"]
 
@@ -153,7 +153,7 @@ class TestEmailClientSendEmail:
         mock_client_instance.send.return_value = expected_response
 
         with patch.dict(sys.modules, {"mailtrap": mock_mt}):
-            with patch("config.app_config", mock_config):
+            with patch("src.config.app_config", mock_config):
                 if "src.infrastructure.clients.email_client" in sys.modules:
                     del sys.modules["src.infrastructure.clients.email_client"]
 
@@ -179,7 +179,7 @@ class TestEmailClientEdgeCases:
         mock_mt, mock_config = mock_setup
 
         with patch.dict(sys.modules, {"mailtrap": mock_mt}):
-            with patch("config.app_config", mock_config):
+            with patch("src.config.app_config", mock_config):
                 if "src.infrastructure.clients.email_client" in sys.modules:
                     del sys.modules["src.infrastructure.clients.email_client"]
 
@@ -195,7 +195,7 @@ class TestEmailClientEdgeCases:
         mock_mt, mock_config = mock_setup
 
         with patch.dict(sys.modules, {"mailtrap": mock_mt}):
-            with patch("config.app_config", mock_config):
+            with patch("src.config.app_config", mock_config):
                 if "src.infrastructure.clients.email_client" in sys.modules:
                     del sys.modules["src.infrastructure.clients.email_client"]
 
@@ -211,7 +211,7 @@ class TestEmailClientEdgeCases:
         mock_mt, mock_config = mock_setup
 
         with patch.dict(sys.modules, {"mailtrap": mock_mt}):
-            with patch("config.app_config", mock_config):
+            with patch("src.config.app_config", mock_config):
                 if "src.infrastructure.clients.email_client" in sys.modules:
                     del sys.modules["src.infrastructure.clients.email_client"]
 
@@ -228,7 +228,7 @@ class TestEmailClientEdgeCases:
         mock_mt, mock_config = mock_setup
 
         with patch.dict(sys.modules, {"mailtrap": mock_mt}):
-            with patch("config.app_config", mock_config):
+            with patch("src.config.app_config", mock_config):
                 if "src.infrastructure.clients.email_client" in sys.modules:
                     del sys.modules["src.infrastructure.clients.email_client"]
 
@@ -246,7 +246,7 @@ class TestEmailClientEdgeCases:
         mock_mt, mock_config = mock_setup
 
         with patch.dict(sys.modules, {"mailtrap": mock_mt}):
-            with patch("config.app_config", mock_config):
+            with patch("src.config.app_config", mock_config):
                 if "src.infrastructure.clients.email_client" in sys.modules:
                     del sys.modules["src.infrastructure.clients.email_client"]
 
