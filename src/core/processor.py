@@ -26,35 +26,59 @@ def _clean_raw_value(value) -> str | None:
     return str(value) if value else None
 
 
-def _record_to_raw_listing(record: dict) -> RawListing:
-    """Convert a CSV record dict to a RawListing object."""
-    # Clean up NaN values and convert types
-    cleaned = {}
-    for key, value in record.items():
-        if key == "scraped_at" and value and not pd.isna(value):
-            # Parse datetime string
-            try:
-                if isinstance(value, str):
-                    cleaned[key] = datetime.fromisoformat(value)
-                else:
-                    cleaned[key] = value
-            except (ValueError, TypeError):
-                cleaned[key] = None
-        elif key in ("num_photos", "total_offers") and value is not None and not pd.isna(value):
-            # Integer fields
-            try:
-                cleaned[key] = int(float(value))
-            except (ValueError, TypeError):
-                cleaned[key] = None
-        elif key == "ref_no" and value is not None and not pd.isna(value):
-            # ref_no must be string (pandas may read numeric-only values as int)
-            cleaned[key] = str(int(value)) if isinstance(value, float) else str(value)
-        elif pd.isna(value) if hasattr(pd, "isna") else (isinstance(value, float) and math.isnan(value)):
-            cleaned[key] = None
-        else:
-            cleaned[key] = value if value else None
+def _clean_field_value(key: str, value) -> tuple:
+    """Clean a single field value for RawListing construction.
 
-    return RawListing(**cleaned)
+    Returns:
+        Tuple of (cleaned_value, warning_message or None)
+    """
+    try:
+        # Handle NaN values first
+        if pd.isna(value) if hasattr(pd, "isna") else (isinstance(value, float) and math.isnan(value)):
+            return None, None
+
+        if value is None:
+            return None, None
+
+        if key == "scraped_at":
+            if isinstance(value, str):
+                return datetime.fromisoformat(value), None
+            return value, None
+
+        if key in ("num_photos", "total_offers"):
+            return int(float(value)), None
+
+        if key == "ref_no":
+            # ref_no must be string (pandas may read numeric-only values as int)
+            return str(int(value)) if isinstance(value, float) else str(value), None
+
+        if key.endswith("_text"):
+            # All _text fields must be strings (pandas may read numeric-only values as float)
+            return _clean_raw_value(value), None
+
+        # Default: return value as-is if truthy, else None
+        return value if value else None, None
+
+    except (ValueError, TypeError) as e:
+        return None, f"Field '{key}' could not be parsed (value={value!r}): {e}"
+
+
+def _record_to_raw_listing(record: dict) -> tuple[RawListing, list[str]]:
+    """Convert a CSV record dict to a RawListing object.
+
+    Returns:
+        Tuple of (RawListing, list of warning messages)
+    """
+    cleaned = {}
+    warnings = []
+
+    for key, value in record.items():
+        cleaned_value, warning = _clean_field_value(key, value)
+        cleaned[key] = cleaned_value
+        if warning:
+            warnings.append(warning)
+
+    return RawListing(**cleaned), warnings
 
 
 class Processor:
@@ -114,7 +138,10 @@ class Processor:
         for record in raw_df.to_dict("records"):
             try:
                 # Convert record to RawListing
-                raw_listing = _record_to_raw_listing(record)
+                raw_listing, field_warnings = _record_to_raw_listing(record)
+                # Log any field parsing warnings
+                for warning in field_warnings:
+                    logger.warning(f"[{self.site_name}] {warning}")
                 # Transform to ListingData
                 listing_data = self.transformer.transform(raw_listing)
                 processed.append(listing_data.model_dump())
