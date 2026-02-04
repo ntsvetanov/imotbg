@@ -46,6 +46,9 @@ def _record_to_raw_listing(record: dict) -> RawListing:
                 cleaned[key] = int(float(value))
             except (ValueError, TypeError):
                 cleaned[key] = None
+        elif key == "ref_no" and value is not None and not pd.isna(value):
+            # ref_no must be string (pandas may read numeric-only values as int)
+            cleaned[key] = str(int(value)) if isinstance(value, float) else str(value)
         elif pd.isna(value) if hasattr(pd, "isna") else (isinstance(value, float) and math.isnan(value)):
             cleaned[key] = None
         else:
